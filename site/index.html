@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- GitHub Pages can't send response headers, so the CSP rides in a <meta> (ADR-0002).
+       connect-src pins network access to OpenRouter: even injected script could not
+       fetch() the key to another host. No inline script/style anywhere on this page. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://openrouter.ai; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A static, bring-your-own-key chat client for OpenRouter. Runs entirely in your browser.">
+  <title>OpenRouter Chat Harness</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script type="module" src="./js/app.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <h1 class="brand">OpenRouter Chat</h1>
+      <button type="button" class="model-chip" id="model-chip" title="Change model">Choose model</button>
+      <button type="button" class="icon-btn" id="open-settings" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
+      </button>
+    </header>
+
+    <main class="chat" id="chat">
+      <section class="empty-state" id="empty-state" aria-labelledby="empty-title">
+        <h2 id="empty-title">Start a conversation</h2>
+        <p>Messages go straight from this browser to OpenRouter with your own API key. There is no server in between.</p>
+        <p class="empty-note" id="empty-config-note" hidden>First, add your API key and choose a model in <button type="button" class="link-btn" id="empty-open-settings">Settings</button>.</p>
+      </section>
+      <ol class="messages" id="messages" aria-live="polite" aria-label="Conversation"></ol>
+    </main>
+
+    <form class="composer" id="composer">
+      <label for="prompt" class="visually-hidden">Message</label>
+      <textarea id="prompt" rows="1" placeholder="Message…" autocomplete="off"></textarea>
+      <button type="submit" class="btn btn--primary" id="send">Send</button>
+      <button type="button" class="btn btn--stop" id="stop" hidden>Stop</button>
+    </form>
+  </div>
+
+  <dialog class="settings" id="settings" aria-labelledby="settings-title">
+    <form id="settings-form" novalidate>
+      <h2 id="settings-title">Settings</h2>
+
+      <label class="field-label" for="api-key">OpenRouter API key</label>
+      <div class="key-row">
+        <input id="api-key" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="sk-or-v1-…">
+        <button type="button" class="btn" id="toggle-key" aria-pressed="false">Show</button>
+      </div>
+      <p class="hint">Kept only for this browser tab (sessionStorage); closing the tab forgets it.
+        Create a key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai/keys</a>.
+        A dedicated key with a credit limit is safest.</p>
+
+      <label class="field-label" for="model">Model</label>
+      <input id="model" list="model-suggestions" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="e.g. openrouter/free">
+      <datalist id="model-suggestions"></datalist>
+      <p class="hint">Pick a suggestion or type any OpenRouter model ID. <code>openrouter/free</code> and IDs ending in <code>:free</code> cost nothing but are rate-limited.</p>
+
+      <details class="security">
+        <summary>About security</summary>
+        <ul>
+          <li>Your key is sent from this browser directly to OpenRouter. This site has no server and never sees it, but any script running on this page could.</li>
+          <li>The key is kept only for this tab (sessionStorage). Pages on the same <code>github.io</code> origin can read storage, which is why it is not saved on the device.</li>
+          <li>Replies are shown as plain text and are never interpreted as HTML.</li>
+          <li>If you think a key was exposed, revoke it at openrouter.ai/keys.</li>
+        </ul>
+      </details>
+
+      <p class="form-error" id="settings-error" role="alert" hidden></p>
+
+      <div class="dialog-actions">
+        <button type="button" class="btn btn--ghost-danger" id="forget-key">Forget key</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="cancel-settings">Cancel</button>
+        <button type="submit" class="btn btn--primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

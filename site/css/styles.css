@@ -1,0 +1,312 @@
+/* OpenRouter Chat Harness — mobile-first, no external fonts or assets (CSP: style-src 'self'). */
+
+:root {
+  --bg: #f7f6f3;
+  --surface: #ffffff;
+  --surface-2: #efede8;
+  --border: #dedad2;
+  --text: #1d1b18;
+  --muted: #6b665d;
+  --accent: #b5741c;
+  --accent-ink: #ffffff;
+  --accent-soft: #f6e8d3;
+  --danger: #b3261e;
+  --danger-bg: #fbeceb;
+  --focus: #2563eb;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.06);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161513;
+    --surface: #1f1d1a;
+    --surface-2: #2a2824;
+    --border: #3a3732;
+    --text: #ece9e3;
+    --muted: #a39d92;
+    --accent: #d99a45;
+    --accent-ink: #1a1408;
+    --accent-soft: #3a2c18;
+    --danger: #ff8a80;
+    --danger-bg: #3a1f1d;
+    --focus: #7aa2ff;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px rgb(0 0 0 / 0.3);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 var(--font);
+  -webkit-text-size-adjust: 100%;
+}
+
+button, input, textarea { font: inherit; color: inherit; }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+code { font-family: var(--mono); font-size: 0.9em; }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* ---------- layout ---------- */
+
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  height: 100dvh; /* tracks the mobile browser's dynamic toolbar */
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem max(1rem, env(safe-area-inset-left)) 0.6rem max(1rem, env(safe-area-inset-right));
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.brand {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  white-space: nowrap;
+  margin-right: auto;
+}
+
+.model-chip {
+  min-width: 0;
+  max-width: 55vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.model-chip--unset { font-family: var(--font); color: var(--accent); border-color: var(--accent); }
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem; height: 2.25rem;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--surface-2); }
+
+.chat {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+}
+
+/* ---------- empty state ---------- */
+
+.empty-state {
+  max-width: 34rem;
+  margin: 12vh auto 0;
+  text-align: center;
+  color: var(--muted);
+}
+.empty-state h2 { margin: 0 0 0.5rem; color: var(--text); font-size: 1.35rem; }
+.empty-note { color: var(--text); }
+.link-btn {
+  padding: 0; border: 0; background: none;
+  color: var(--accent); text-decoration: underline; cursor: pointer;
+}
+
+/* ---------- messages ---------- */
+
+.messages {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.msg {
+  max-width: 85%;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius);
+  overflow-wrap: anywhere;
+}
+
+/* Replies are plain text (ADR-0002): pre-wrap keeps the model's line breaks and code indentation. */
+.msg__body { white-space: pre-wrap; }
+
+.msg--user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-bottom-right-radius: 4px;
+}
+
+.msg--assistant {
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+  box-shadow: var(--shadow);
+}
+
+.msg__meta {
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.msg--notice {
+  align-self: center;
+  max-width: 100%;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.msg--error {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.msg__actions { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.4rem; }
+
+/* typing indicator */
+.msg--pending { display: inline-flex; gap: 0.3rem; align-items: center; min-height: 2.6rem; }
+.dot {
+  width: 0.45rem; height: 0.45rem;
+  border-radius: 50%;
+  background: var(--muted);
+  animation: blink 1.2s infinite ease-in-out both;
+}
+.dot:nth-child(2) { animation-delay: 0.15s; }
+.dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .dot { animation: none; opacity: 0.6; } }
+
+/* ---------- composer ---------- */
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem max(1rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  max-height: 12rem;
+  resize: none;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  line-height: 1.4;
+}
+.composer textarea:disabled { opacity: 0.6; }
+
+/* ---------- buttons ---------- */
+
+.btn {
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn--primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.07); }
+.btn--stop { border-color: var(--danger); color: var(--danger); }
+.btn--ghost-danger { border-color: transparent; background: transparent; color: var(--danger); padding-inline: 0.4rem; }
+.btn--small { padding: 0.25rem 0.7rem; font-size: 0.85rem; }
+
+/* ---------- settings dialog ---------- */
+
+.settings {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.settings::backdrop { background: rgb(0 0 0 / 0.45); }
+.settings h2 { margin: 0 0 1rem; font-size: 1.2rem; }
+
+.field-label { display: block; margin: 0.9rem 0 0.35rem; font-weight: 600; }
+
+.settings input {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 0.9rem;
+}
+.key-row { display: flex; gap: 0.5rem; }
+.key-row input { flex: 1; min-width: 0; }
+
+.hint { margin: 0.35rem 0 0; font-size: 0.85rem; color: var(--muted); }
+.hint a { color: var(--accent); }
+
+.security { margin-top: 1rem; font-size: 0.85rem; color: var(--muted); }
+.security summary { cursor: pointer; color: var(--text); font-weight: 600; }
+.security ul { margin: 0.5rem 0 0; padding-left: 1.2rem; }
+
+.form-error {
+  margin: 0.9rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.dialog-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 1.25rem; }
+.spacer { flex: 1; }
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 480px) {
+  .brand { font-size: 0.95rem; }
+  .msg { max-width: 92%; }
+  .chat { padding: 0.75rem; }
+  .settings { padding: 1rem; }
+}
