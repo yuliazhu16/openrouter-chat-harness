@@ -9,8 +9,8 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0001: Static site architecture, repo layout, and GitHub Pages deployment
 
 - **Date**: 2026-11-12
-- **Iteration**: 1
-- **Status**: Draft
+- **Iteration**: 2
+- **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
 **TL;DR**: Ship a no-build, vanilla HTML/CSS/ES-module site from `site/`, deployed by the official GitHub Actions Pages flow that uploads only `site/` — nothing else in the repo is ever published.
@@ -56,7 +56,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 ## Questions
 
 ### QST-STACK-BUILD: Should `site/` be raw files served as-is, or produced by a build step?
-- Status: unanswered
+- Status: answered
 - Why asking: This decides the shape of everything else — how JS is split into files, whether `node_modules` ever appears, what the deploy workflow does, and whether the published files are the same files you edit. The brief prefers vanilla and no unnecessary dependencies, but a bundler is the usual escape hatch, so it should be ruled out deliberately rather than by omission.
 - Need: pick a letter (or override — any shape answers)
 
@@ -70,12 +70,12 @@ Options:
 **A — Native ES modules, no build.** *Rationale*: Every target browser supports `<script type="module">`; the app's estimated size (a few hundred lines of JS) gains nothing measurable from bundling; and separate modules are exactly what makes the pure logic importable by `node --test` with zero dependencies (ADR-0005), which B cannot offer and C offers only by adding a toolchain. A keeps the brief's "avoid unnecessary dependencies" literally true. *Confidence*: 0.9 — because the constraint set (static, small, vanilla-preferred, testable) points one way and I verified Node 24 is available locally for the test half. *If wrong*: if we later want TypeScript or a UI framework, or if JS grows past roughly 2,000 lines and load-time becomes measurable, this flips to **C**; nothing in A blocks that migration.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Native ES modules, no build. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12: "I agree on every suggestion you brought up to each question you've been raised. Just followed what you suggested." — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-DEPLOY-METHOD: Which GitHub Pages deployment mechanism publishes `site/`?
-- Status: unanswered
+- Status: answered
 - Why asking: The brief requires "a GitHub Actions workflow to deploy only `site/`". There are two Actions-based ways to do that, and they differ in what extra state they leave in the repo and in one manual setting you (the repo owner) must flip.
 - Need: pick a letter (or override — any shape answers)
 
@@ -89,7 +89,7 @@ Options:
 **A — Official Pages artifact flow.** *Rationale*: It is GitHub's first-party mechanism, uploads exactly the `site/` directory (the publication boundary from Explicitation #2), needs no generated branch, and uses only `actions/*` actions maintained by GitHub — smaller supply-chain surface than B. It also lets a test job gate the deploy job in the same workflow (ADR-0005, QST-DEPLOY-GATE). *Confidence*: 0.9 — because this is the documented default for custom-workflow Pages; the one cost is the manual Settings toggle, which I can do via `gh api` if you authorize it. *If wrong*: if the repo's Pages settings can't be switched to "GitHub Actions" (e.g. org policy), this flips to **B**.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Official Pages artifact flow. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
@@ -146,7 +146,7 @@ jobs:
 
 ## Decision
 
-*Pending the answers above.* If both recommendations are accepted:
+*Decided 2026-11-12 (Iteration 2): both recommendations accepted by yuliazhu.*
 
 ### Context
 A static, dependency-free chat client must be published from a public repo that also holds non-published collaboration material.
@@ -194,6 +194,11 @@ A static, dependency-free chat client must be published from a public repo that 
 - Contributors: Switchboard 5.5 (Claude Opus 5.5)
 - Changes: framed two questions (build vs. no-build; deploy mechanism), proposed layout and workflow sketch
 - Outcome: Draft — awaiting answers
+
+### Iteration 2 (2026-11-12)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: human's blanket acceptance of all recommendations in chat. Changes: both questions answered per recommendation; Decision section finalized. Status Draft → Accepted.
 
 ---
 

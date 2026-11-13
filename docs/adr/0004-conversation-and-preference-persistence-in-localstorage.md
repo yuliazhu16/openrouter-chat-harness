@@ -9,8 +9,8 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0004: Conversation and preference persistence in localStorage
 
 - **Date**: 2026-11-12
-- **Iteration**: 1
-- **Status**: Draft
+- **Iteration**: 2
+- **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
 **TL;DR**: Multiple conversations stored in versioned, namespaced localStorage keys (an index plus one key per conversation), restored on load, with New Chat / delete-one / Clear-all semantics and graceful handling of a full or unavailable storage.
@@ -52,7 +52,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 ## Questions
 
 ### QST-CONVERSATIONS: One conversation, or several saved conversations with a list?
-- Status: unanswered
+- Status: answered
 - Why asking: The brief requires both "New Chat" and "Clear History", which reads most naturally as several saved conversations — but it doesn't say whether earlier chats should be reachable again. This decides the storage schema and whether the layout needs a conversation list (a sidebar on desktop, a slide-out drawer on mobile).
 - Need: pick a letter (or override — any shape answers)
 
@@ -66,12 +66,12 @@ Options:
 **B — Multiple conversations with a list.** *Rationale*: It gives "New Chat" and "Clear History" distinct, intuitive meanings (Explicitation #1) and matches what users expect from every mainstream chat client. The cost is one list component plus a drawer on mobile, and the storage schema needed is the same as C's. C stores data the user can't reach, which looks like data loss. A makes "New Chat" destructive. *Confidence*: 0.75 — because this is a reading of intent, not a stated requirement. *If wrong*: if you meant the minimal reading — one chat, two ways to reset it — this flips to **A**, which is strictly less work.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+B — Multiple conversations with a list (sidebar; drawer on mobile). Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12: "I agree on every suggestion you brought up to each question you've been raised. Just followed what you suggested." — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-CLEAR-SCOPE: What exactly does "Clear History" erase?
-- Status: unanswered
+- Status: answered
 - Why asking: With several conversations (QST-CONVERSATIONS B or C), "Clear History" could mean the current chat or all of them. Separately, users may expect "clear" to also remove the saved API key or their preferences. Getting this wrong deletes something the user meant to keep, and localStorage has no undo.
 - Need: pick a letter (or override — any shape answers)
 
@@ -85,7 +85,7 @@ Options:
 **A — All conversations; nothing else.** *Rationale*: "History" names conversations, not settings, so the button should erase exactly the history. Keeping each kind of deletion separate (one chat, all chats, the key) means no button removes more than its label says, and the confirm dialog with a count guards the one irreversible bulk action. A full "Reset everything" can live at the bottom of Settings if wanted. *Confidence*: 0.8 — because the label sets the user's expectation and A matches the label. *If wrong*: if QST-CONVERSATIONS resolves to A (a single conversation), this question is moot (status → moot); if you see Clear as a privacy "panic button", this flips to **C**.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — All conversations; nothing else (key and preferences kept; confirm dialog with count). Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
@@ -116,7 +116,14 @@ One key per conversation means each new message rewrites one chat, not the entir
 
 ## Decision
 
-*Pending the answers above.* Proposed as decided unless you object: the v1 schema above with a `schema` version and `migrate()`; one key per conversation; UI-only notices stored as `role: "notice"` and filtered out before every API call; never auto-delete user data.
+*Decided 2026-11-12 (Iteration 2): all recommendations accepted by yuliazhu.*
+
+### Chosen
+- **Conversations**: multiple saved conversations, auto-titled from the first user message, listed newest-first in a sidebar (drawer on mobile); New Chat starts a fresh one; each can be deleted individually. (QST-CONVERSATIONS = B)
+- **Clear History**: deletes all conversations after a confirm dialog showing the count; keeps the API key and preferences. "Forget API key" lives in Settings. (QST-CLEAR-SCOPE = A)
+
+### Also decided (proposed in Iteration 1, not objected to)
+The v1 schema above with a `schema` version and `migrate()`; one key per conversation; UI-only notices stored as `role: "notice"` and filtered out before every API call; never auto-delete user data.
 
 ---
 
@@ -151,6 +158,11 @@ One key per conversation means each new message rewrites one chat, not the entir
 - Contributors: Switchboard 5.5 (Claude Opus 5.5)
 - Changes: two questions; proposed v1 schema and failure handling
 - Outcome: Draft — awaiting answers
+
+### Iteration 2 (2026-11-12)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: human's blanket acceptance of all recommendations in chat. Changes: both questions answered per recommendation; Decision section finalized. Status Draft → Accepted.
 
 ---
 

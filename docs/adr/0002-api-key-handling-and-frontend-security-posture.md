@@ -9,8 +9,8 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0002: API key handling and frontend security posture
 
 - **Date**: 2026-11-12
-- **Iteration**: 1
-- **Status**: Draft
+- **Iteration**: 2
+- **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
 **TL;DR**: BYOK with the key in `sessionStorage` by default, an explicit opt-in "remember on this device" (`localStorage`) behind a warning, all model output rendered via `textContent`, and a strict CSP `<meta>` — with the github.io shared-origin limitation documented, not hidden.
@@ -54,7 +54,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 ## Questions
 
 ### QST-KEY-STORAGE: Where does the API key live by default, and what does opt-in persistence look like?
-- Status: unanswered
+- Status: answered
 - Why asking: The brief allows "memory or sessionStorage" as the default and makes persistence opt-in. The two defaults behave very differently on page refresh: memory-only forces re-pasting the key after every reload; sessionStorage survives reloads but is wiped when the tab closes. This choice is the main convenience-vs-exposure dial of the app.
 - Need: pick a letter (or override — any shape answers)
 
@@ -68,12 +68,12 @@ Options:
 **B — sessionStorage default + explicit opt-in localStorage.** *Rationale*: It is the exact shape the brief describes ("sessionStorage by default … explicit opt-in with a security warning"), and the refresh case matters: requirement "restore saved chat history after refreshing" would feel broken if the key vanished on the same refresh (A). The opt-in path's risk is real (Explicitation #2) but bounded by a warning, a "Forget key" button, and the advice to use a credit-limited key. *Confidence*: 0.8 — because it matches the brief verbatim; the remaining doubt is purely about whether the shared-origin risk (QST-SHARED-ORIGIN) should remove the opt-in entirely. *If wrong*: if you answer QST-SHARED-ORIGIN with "C" (no persistent key at all), this flips to **C**.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+B — sessionStorage default + explicit opt-in localStorage. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12: "I agree on every suggestion you brought up to each question you've been raised. Just followed what you suggested." — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-SHARED-ORIGIN: How do we handle the fact that all `<user>.github.io` project pages share one origin (and one localStorage)?
-- Status: unanswered
+- Status: answered
 - Why asking: Browsers isolate storage by origin (scheme + host + port), not by path. Every repo you publish with GitHub Pages lives at `https://<user>.github.io/<repo>/` — same origin — so JavaScript on any of those pages can read this app's localStorage: saved conversations, preferences, and an opted-in persisted API key. This was not in the brief; it is the one security limitation that is specific to *this* hosting choice.
 - Need: pick a letter (or override — any shape answers)
 
@@ -87,12 +87,12 @@ Options:
 **A — Accept and document.** *Rationale*: The exposure is to *your own* other Pages sites, not to the internet at large; for a personal/course project that is an acceptable, documentable risk, and the brief explicitly asks to "clearly document the security limitations". B is the real fix and costs nothing in code, so it stays open as the upgrade path; C trades away a convenience the brief explicitly allows. *Confidence*: 0.6 — because the right answer depends on facts only you have (what else you publish on `<user>.github.io`, and whether others will use the deployed app with their own keys); that is a your-call band. *If wrong*: if you already host (or plan to host) other Pages sites with third-party scripts or user-submitted content, this flips to **C** now and **B** later.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Accept and document. Accepted as recommended; custom domain (B) stays the upgrade path. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-RENDERING: How are assistant messages rendered — plain text only, or a safe Markdown subset?
-- Status: unanswered
+- Status: answered
 - Why asking: The brief requires rendering model responses "safely as text, not unsanitized HTML." Plain text satisfies that trivially, but models answer in Markdown, so code blocks and lists appear as raw symbols. There are safe ways to show formatting; they cost code or dependencies.
 - Need: pick a letter (or override — any shape answers)
 
@@ -106,7 +106,7 @@ Options:
 **B — Plain text in v1, then an in-house Markdown subset.** *Rationale*: A literally meets the requirement and is the right Phase 1 behavior; but code blocks shown as raw fences make a chat client noticeably worse for the most common use (asking about code). A DOM-building subset keeps the "never parse model output as HTML" invariant intact — the invariant is what the brief protects, not the absence of formatting — while C imports a sanitizer whose correctness we'd be trusting rather than testing. *Confidence*: 0.7 — because the safety argument is solid, but whether formatting is worth Phase 3 time is a product call. *If wrong*: if you'd rather keep the code minimal and the invariant trivially auditable, this flips to **A**; if full Markdown (tables, nested lists) turns out to matter, to **C**.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+B — Plain text in v1, then an in-house Markdown subset (DOM-building, never innerHTML). Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
@@ -138,7 +138,15 @@ Options:
 
 ## Decision
 
-*Pending the answers above.* Already-uncontroversial parts, proposed as decided unless you object:
+*Decided 2026-11-12 (Iteration 2): all recommendations accepted by yuliazhu.*
+
+### Chosen
+- **Key storage**: sessionStorage by default; "Remember on this device" (localStorage) is an explicit, off-by-default opt-in behind a warning naming the shared-origin and shared-computer risks; "Forget key" clears both stores. (QST-KEY-STORAGE = B)
+- **Shared origin**: accepted and documented — in the opt-in warning, the in-app "About security" note, and the README; a custom domain is the upgrade path. (QST-SHARED-ORIGIN = A)
+- **Rendering**: `textContent` only in Phase 1; an in-house, DOM-building Markdown subset (never `innerHTML`, `https:`-only links) in Phase 3. (QST-RENDERING = B)
+- **Key acquisition**: paste-a-key only; OAuth PKCE reconsidered in Phase 4 if others use the public site. (QST-OAUTH-PKCE = A)
+
+### Also decided (uncontroversial, proposed in Iteration 1, not objected to)
 - No key in source, config, or URL ever; the key is never logged and never placed in a URL query string.
 - `textContent`-only rendering in Phase 1 (common ground of every option in QST-RENDERING).
 - CSP `<meta>` as in COD: proposed-csp-meta.
@@ -149,7 +157,7 @@ Options:
 ## Open Follow-ups
 
 ### QST-OAUTH-PKCE: Should the app also offer "Connect with OpenRouter" (OAuth PKCE) instead of pasting a key?
-- Status: deferred — not needed for v1; revisit after Phase 2
+- Status: answered — un-deferred early by the human's blanket acceptance (2026-11-12); reopen for B in Phase 4 if others use the site
 - Why deferring: OpenRouter documents a PKCE flow for browser apps: redirect the user to openrouter.ai, they approve, and the app exchanges the returned code for a user-owned API key — no backend needed, and it is still BYOK (the user's account, the user's credits). It would remove copy-paste friction, but it adds a redirect round-trip and a third flow to test. Unverified: that the key-exchange endpoint answers CORS like the chat endpoint does (the probe in `scripts/ephemeral/2026-11-12-cors-preflight-probe.sh` did not cover it).
 - Need: pick a letter (or override — any shape answers), when un-deferred
 
@@ -162,7 +170,7 @@ Options:
 **A — Paste-a-key only, for now.** *Rationale*: The brief asks for BYOK via a Settings panel and nothing more; PKCE is an enhancement whose key endpoint's CORS behavior I have not verified. *Confidence*: 0.75 — because v1 scope is clear, while the value of B depends on who ends up using the deployed app. *If wrong*: if people other than you will use the public site (copy-pasting keys is the most error-prone onboarding step), this flips to **B** in Phase 4 — after a CORS probe of the exchange endpoint.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Paste-a-key only, for now. Accepted as recommended; reopen for B in Phase 4 if others use the public site. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
@@ -195,6 +203,11 @@ Options:
 - Contributors: Switchboard 5.5 (Claude Opus 5.5)
 - Changes: three open questions + one deferred; surfaced the github.io shared-origin finding; proposed CSP and the limitations text
 - Outcome: Draft — awaiting answers
+
+### Iteration 2 (2026-11-12)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: human's blanket acceptance of all recommendations in chat. Changes: all four questions answered per recommendation (incl. the deferred QST-OAUTH-PKCE → A for now); Decision section finalized. Status Draft → Accepted.
 
 ---
 

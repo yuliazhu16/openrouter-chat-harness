@@ -9,8 +9,8 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0003: OpenRouter integration — requests, streaming, models, and errors
 
 - **Date**: 2026-11-12
-- **Iteration**: 1
-- **Status**: Draft
+- **Iteration**: 2
+- **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
 **TL;DR**: The browser POSTs directly to `https://openrouter.ai/api/v1/chat/completions` (CORS verified: preflight and error responses both carry `Access-Control-Allow-Origin: *`); v1 is non-streaming with an abortable loading state, the model is a free-text field with suggestions, and every failure maps to a human-readable message.
@@ -57,7 +57,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 ## Questions
 
 ### QST-STREAMING: Should v1 stream responses token-by-token, or wait for the complete reply?
-- Status: unanswered
+- Status: answered
 - Why asking: Streaming (Server-Sent Events, `stream: true`) makes a chat app feel fast, because text appears as it is generated; without it the user sees only a loading indicator until the whole answer arrives, which can take 10–60 s for long answers or reasoning models. Streaming costs more code (an SSE line parser over `ReadableStream`, partial-message state, mid-stream errors). The brief asks for a "simple first version" with "loading indicators".
 - Need: pick a letter (or override — any shape answers)
 
@@ -71,12 +71,12 @@ Options:
 **A — Non-streaming in v1, streaming in Phase 3.** *Rationale*: The brief's minimum features (loading indicators, error messages, multi-turn) are all fully met by A, and A gives Phase 1 a single, easy-to-debug request path for the one unverified link — the first authenticated browser round-trip. Streaming is then an isolated upgrade with its own pure, unit-testable SSE parser (ADR-0005), rather than a variable in the first deploy. C gives up the single biggest UX improvement for a chat client. *Confidence*: 0.65 — because this is a sequencing judgment; if perceived latency matters to you from day one, B is perfectly reasonable. *If wrong*: if early use shows multi-second blank waits are common (reasoning models, long answers), this flips to **B** — i.e. pull Phase 3's streaming forward.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Non-streaming in v1, streaming in Phase 3. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12: "I agree on every suggestion you brought up to each question you've been raised. Just followed what you suggested." — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-MODEL-PICKER: How does the user choose a model?
-- Status: unanswered
+- Status: answered
 - Why asking: The brief says "select or enter an OpenRouter model ID". OpenRouter's catalog is large and changes often, so a hard-coded dropdown goes stale; a free-text field alone makes users look IDs up elsewhere. The probe confirmed `GET /api/v1/models` is public and CORS-enabled, so a live list is possible without a key.
 - Need: pick a letter (or override — any shape answers)
 
@@ -90,12 +90,12 @@ Options:
 **B in Phase 1, upgraded to C in Phase 3.** *Rationale*: Free-text keeps "enter any ID" true in every option, and the `<datalist>` gives "select" behavior natively (works on mobile) at no dependency cost. Shipping B first keeps Phase 1's network surface to the single chat endpoint; C is a contained follow-on whose CORS feasibility is already verified (probe #3). *Confidence*: 0.75 — because every option preserves the requirement; the only question is how much help to give, and when. *If wrong*: if the curated list is stale before Phase 3 or users mostly want to browse models, this flips to **C** immediately.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+B in Phase 1 (free-text + curated datalist), upgraded to C (live /models suggestions) in Phase 3. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-DEFAULT-MODEL: Which model is used before the user picks one?
-- Status: unanswered
+- Status: answered
 - Why asking: First-run behavior has cost consequences for whoever's key is in use. OpenRouter's `openrouter/auto` picks a model per prompt (can be a paid, expensive one). Free model IDs (`…:free`) cost nothing but are rate-limited, and the free lineup changes, so a hard-coded free default can break silently. A brand-new key with $0 credit gets a 402 on paid models.
 - Need: pick a letter (or override — any shape answers)
 
@@ -109,12 +109,12 @@ Options:
 **C — No default; first run asks for key and model together.** *Rationale*: First run must already open Settings for the key (BYOK, ADR-0002), so asking for a model in the same panel adds one field, not one step — and it avoids both failure modes: surprise spending (A) and a silently stale default (B). Suggestions from QST-MODEL-PICKER make the choice one tap. *Confidence*: 0.65 — because it trades a sliver of first-run friction for predictability, and how you weigh that depends on who will use the public site. *If wrong*: if first-run testing shows people stall on the model field, this flips to **B** with the model field pre-filled from the free suggestions.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+C — No default; first run asks for key and model together. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-HISTORY-LIMIT: How much conversation history is sent with each request?
-- Status: unanswered
+- Status: answered
 - Why asking: The API is stateless, so multi-turn works by resending prior messages every time. Sending everything is simplest and most faithful, but each turn gets more expensive, and a long chat will eventually exceed the model's context window (the API returns a 400 error).
 - Need: pick a letter (or override — any shape answers)
 
@@ -128,7 +128,7 @@ Options:
 **A — Send the full history; explain the overflow error.** *Rationale*: It is the only option where what the user sees is exactly what the model sees — no invisible forgetting — and the failure is loud and explained, not silent. Typical personal chats stay far below modern context windows (commonly 128k+ tokens). B and C add a correctness surprise to save cost the user can already control with New Chat. *Confidence*: 0.7 — because cost sensitivity varies per user and per model. *If wrong*: if per-turn costs on long chats become noticeable in real use, this flips to **B** (with a visible "earlier messages not sent" marker).
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Send the full history; explain the overflow error. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
@@ -175,7 +175,16 @@ Unknown shapes fall back to "Unexpected response (HTTP ‹status›)" plus the r
 
 ## Decision
 
-*Pending the answers above.* Proposed as decided unless you object: direct `fetch` (no proxy — CORS verified); default `credentials` mode; `HTTP-Referer` + `X-Title` attribution headers; the error table above; one request in flight per conversation (Send disabled while waiting; Stop enabled).
+*Decided 2026-11-12 (Iteration 2): all recommendations accepted by yuliazhu.*
+
+### Chosen
+- **Streaming**: non-streaming in Phase 1 (loading indicator + Stop via `AbortController`); SSE streaming in Phase 3. (QST-STREAMING = A)
+- **Model picker**: free-text `<input list>` + a curated `<datalist>` in Phase 1; live suggestions from `/api/v1/models` (24 h cache, curated fallback) in Phase 3. (QST-MODEL-PICKER = B → C)
+- **Default model**: none — first run opens Settings for key + model together; Send disabled until both are set. (QST-DEFAULT-MODEL = C)
+- **History**: full history sent each turn; context overflow mapped to a clear "start a New Chat or pick a larger-context model" message. (QST-HISTORY-LIMIT = A)
+
+### Also decided (proposed in Iteration 1, not objected to)
+Direct `fetch` (no proxy — CORS verified); default `credentials` mode; `HTTP-Referer` + `X-Title` attribution headers; the error table above; one request in flight per conversation (Send disabled while waiting; Stop enabled).
 
 ---
 
@@ -213,6 +222,11 @@ Unknown shapes fall back to "Unexpected response (HTTP ‹status›)" plus the r
 - Contributors: Switchboard 5.5 (Claude Opus 5.5)
 - Changes: four questions; request shape; proposed error-mapping table
 - Outcome: Draft — awaiting answers
+
+### Iteration 2 (2026-11-12)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: human's blanket acceptance of all recommendations in chat. Changes: all four questions answered per recommendation; Decision section finalized. Status Draft → Accepted.
 
 ---
 

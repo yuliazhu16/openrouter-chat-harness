@@ -249,15 +249,15 @@ If the script was successfully used, append as comments how, and what the outcom
 A simple, functional AI chat interface published as a fully static site on GitHub Pages: the browser calls OpenRouter's Chat Completions API directly with `fetch()` and the user's own API key (BYOK), and keeps conversations and preferences in `localStorage` — no backend, database, serverless function, or proxy of any kind. This repo is both the product and its deliberation record: only `site/` (vanilla HTML/CSS/JS) is deployed, by a GitHub Actions workflow; ADRs, crew files, and scripts never ship.
 
 ### Current focus:
-Phase 0 — design review. ADRs 0001–0005 carry the open design questions; **no application code is written until the human has answered/approved them**. `just unanswered` lists what awaits answers.
+Phase 1 — walking skeleton, deployed (plan: ADR-0005, DOC: phased-delivery-plan). Phase 0 closed 2026-11-12: all ADRs Accepted.
 
 ### Key decisions made:
-*(All Draft — awaiting the human's answers.)*
-- Static architecture, repo layout & Pages deployment — see `docs/adr/0001-*.md`
-- API key handling & frontend security posture — see `docs/adr/0002-*.md`
-- OpenRouter integration: CORS, requests, streaming, models, errors — see `docs/adr/0003-*.md`
-- Persistence model in localStorage — see `docs/adr/0004-*.md`
-- Testing strategy & verification gate — see `docs/adr/0005-*.md`
+*(All Accepted 2026-11-12.)*
+- Native ES modules, no build; deploy `site/` via the official Pages artifact flow — see `docs/adr/0001-*.md`
+- Key in sessionStorage by default, opt-in localStorage with warning; github.io shared-origin risk documented; `textContent` rendering (safe Markdown subset in Phase 3) — see `docs/adr/0002-*.md`
+- Direct `fetch` (CORS verified); non-streaming v1; free-text model + suggestions; no default model; full history sent; mapped error messages — see `docs/adr/0003-*.md`
+- Multiple conversations with a sidebar; Clear History = all chats, keeps key/prefs; versioned schema — see `docs/adr/0004-*.md`
+- `node --test` + manual checklist per phase; tests gate the deploy; four-phase plan — see `docs/adr/0005-*.md`
 
 ### Open questions:
 ```bash

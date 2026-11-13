@@ -9,8 +9,8 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0005: Testing strategy, verification gate, and phased delivery
 
 - **Date**: 2026-11-12
-- **Iteration**: 1
-- **Status**: Draft
+- **Iteration**: 2
+- **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
 **TL;DR**: Zero-dependency `node --test` unit tests for the pure modules (request building, error mapping, storage, later SSE and Markdown parsing), plus a short manual browser checklist per phase; the same tests gate both `just gate` locally and the Pages deploy in CI; delivery in four small phases, each ending in something deployed and checked.
@@ -51,7 +51,7 @@ From `CLAUDE.md`: regression test for every fixed bug (Third), tests must be mea
 ## Questions
 
 ### QST-TEST-STACK: What test tooling does the project use?
-- Status: unanswered
+- Status: answered
 - Why asking: The Third–Fifth Directives require meaningful tests and a gate before every commit, while the brief says to avoid unnecessary dependencies. Test tooling is where dependencies usually creep in (test runners, fake DOMs, headless browsers), so this should be a deliberate choice.
 - Need: pick a letter (or override — any shape answers)
 
@@ -65,12 +65,12 @@ Options:
 **A — `node --test` unit tests + a manual browser checklist.** *Rationale*: The bugs that would actually hurt users of this app — a leaked key, notices sent as history, a migration that drops chats, a misleading error — live in the pure modules (Explicitation #1), which A covers fully with no dependencies. The DOM layer is thin enough (render with `textContent`, wire events) that a per-phase manual check catches its failures at far lower cost than B's toolchain. C's simulated DOM is exactly the "approximates reality" testing the Fourth Directive warns about. *Confidence*: 0.8 — because the module split makes A sufficient for v1; that sufficiency weakens as the UI grows. *If wrong*: if a UI regression (e.g. history not restored on refresh) escapes the manual checklist even once, this flips to **B** for that flow — and the escape gets its regression test, per the Third Directive.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — node --test unit tests + a manual browser checklist. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12: "I agree on every suggestion you brought up to each question you've been raised. Just followed what you suggested." — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-DEPLOY-GATE: Must the unit tests pass in CI before the site deploys?
-- Status: unanswered
+- Status: answered
 - Why asking: Locally, the Fifth Directive requires `just gate` before every commit. But a commit can still reach `main` without it (another machine, a web edit, a forgotten run), and every push to `main` redeploys the public site. Gating the deploy on the tests is the last line of defense.
 - Need: pick a letter (or override — any shape answers)
 
@@ -84,7 +84,7 @@ Options:
 **A — Tests gate the deploy in the same workflow.** *Rationale*: It's a few lines in the workflow sketched in ADR-0001 (COD: pages-workflow-sketch), and it means that what reaches the public URL has passed the same checks as `just gate`. The secret scan in CI matters most: it is the backstop for a key that slipped past the local gate on another machine — though at that point the key is already in git history and must be rotated, so CI limits the damage rather than preventing it. *Confidence*: 0.85 — because the cost is near zero and the failure it prevents is publishing a broken or key-leaking build. *If wrong*: if you want PR-based review with checks on pull requests, keep A and add B's PR trigger on top — the two combine; they aren't rivals.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Tests gate the deploy in the same workflow. Accepted as recommended. (Blanket acceptance given in chat, 2026-11-12 — transcribed by Switchboard 5.5.)
 
 ---
 
@@ -126,7 +126,14 @@ gate:
 
 ## Decision
 
-*Pending the answers above.* Proposed as decided unless you object: pure-module boundaries (no DOM access at import time in `api.js`, `storage.js`, `keystore.js`, `sse.js`); `tests/` lives outside `site/` and is never deployed; every fixed bug gets a regression test in a `describe('Regression tests', …)` block in that module's test file (Third Directive).
+*Decided 2026-11-12 (Iteration 2): all recommendations accepted by yuliazhu; the four-phase plan (DOC: phased-delivery-plan) approved as proposed.*
+
+### Chosen
+- **Test stack**: `node --test` (zero dependencies) for the pure modules + a manual browser checklist at the end of each phase. (QST-TEST-STACK = A)
+- **Deploy gate**: `pages.yml` runs a `test` job (unit tests + secret scan); `deploy` `needs: test`. (QST-DEPLOY-GATE = A)
+
+### Also decided (proposed in Iteration 1, not objected to)
+Pure-module boundaries (no DOM access at import time in `api.js`, `storage.js`, `keystore.js`, `sse.js`); `tests/` lives outside `site/` and is never deployed; every fixed bug gets a regression test in a `describe('Regression tests', …)` block in that module's test file (Third Directive).
 
 ---
 
@@ -161,6 +168,11 @@ gate:
 - Contributors: Switchboard 5.5 (Claude Opus 5.5)
 - Changes: two questions; four-phase delivery plan with per-phase tests and manual checklists; gate evolution
 - Outcome: Draft — awaiting answers
+
+### Iteration 2 (2026-11-12)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: human's blanket acceptance of all recommendations in chat. Changes: both questions answered per recommendation; phase plan approved as proposed. Status Draft → Accepted.
 
 ---
 
