@@ -1,19 +1,9 @@
 # CLAUDE.md - Project Guidance
 
-> **Instantiating this template?** Placeholders look like ⟦THIS⟧ — fill-and-delete
-> each one (grep-proof on purpose; `just instantiate-check` reports which remain
-> and passes only when none do). Square-bracket text elsewhere is either a
-> per-document mold slot (filled at each mint, not at birth) or the frozen
-> dialogue placeholder `[Fill this in]` — never convert those. *(This note is
-> visible text, not an HTML comment, because the harness strips block comments
-> from the CLAUDE.md it serves at session start — a cold instantiator proved the
-> instructions were sitting exactly where their audience could not see them.
-> Delete this block when instantiation is done.)*
-
-- **Project**: ⟦PROJECT-NAME⟧
-- **Human**: ⟦HUMANS⟧
-- **AI**: ⟦AI-SEATS⟧ <!-- with the crew layer, the roster lives in docs/inbox/agent-sessions.json; name the coordinator seat here -->
-- **Last Updated**: ⟦LAST-UPDATED⟧
+- **Project**: OpenRouter Chat Harness
+- **Human**: yuliazhu
+- **AI**: Switchboard 5.5 (Claude Opus 5.5) — founding seat and coordinator; roster in `docs/inbox/agent-sessions.json`
+- **Last Updated**: 2026-11-12
 
 ---
 
@@ -98,15 +88,15 @@ Tests should:
 **RUN THIS PROJECT'S VERIFICATION GATE BEFORE EVERY COMMIT**
 
 Before serving any change:
-1. Run the project's verification gate: ⟦VERIFICATION-GATE⟧ <!-- test suite, build, linter, or a combination; e.g. `npm test`, `uv run pytest`, `hugo && bin/check` -->
+1. Run the project's verification gate: `just gate`
 2. Fix any failures before committing
 3. Never serve changes with a failing gate
 
-**Why**: ⟦GATE-WHY⟧ <!-- state what this project's gate actually catches — real classes of bug, real numbers if you have them. A directive that names a real gate gets followed; an unfollowable one teaches every seat that directives are decorative, and that lesson generalizes. -->
+**Why**: This repo is public and the app is Bring-Your-Own-Key, so the gate's most important job is `just secret-scan` — it fails if anything that looks like an OpenRouter API key (`sk-or-v1-` + 32+ hex) sits in a tracked or untracked-but-not-ignored file. It also catches template drift (unfilled ⟦SIGIL⟧ placeholders, lingering fixture files, a malformed crew registry). From Phase 1 on it runs the zero-dependency unit tests (`node --test`) for the pure modules — request building, error mapping, storage schema/migration — per ADR-0005; until then it honestly has no app code to test.
 
 **Process**:
 ```bash
-⟦VERIFICATION-GATE⟧            # Must be green before commit
+just gate                      # Must be green before commit
 git add <explicit paths>       # never -A: stage by path, commit by pathspec — see CONVENTIONS.md, shared-worktree awareness
 git commit -m "..." -- <paths>
 ```
@@ -256,13 +246,18 @@ If the script was successfully used, append as comments how, and what the outcom
 ## Project Context
 
 ### What we're building:
-⟦PROJECT-GOAL⟧ <!-- 1-3 sentences; same token as ONBOARDING's — one text serves both -->
+A simple, functional AI chat interface published as a fully static site on GitHub Pages: the browser calls OpenRouter's Chat Completions API directly with `fetch()` and the user's own API key (BYOK), and keeps conversations and preferences in `localStorage` — no backend, database, serverless function, or proxy of any kind. This repo is both the product and its deliberation record: only `site/` (vanilla HTML/CSS/JS) is deployed, by a GitHub Actions workflow; ADRs, crew files, and scripts never ship.
 
 ### Current focus:
-⟦CURRENT-FOCUS⟧
+Phase 0 — design review. ADRs 0001–0005 carry the open design questions; **no application code is written until the human has answered/approved them**. `just unanswered` lists what awaits answers.
 
 ### Key decisions made:
-*(List ADRs here as they land, e.g. `- Auth approach — see docs/adr/0001-*.md`. Empty at birth is healthy.)*
+*(All Draft — awaiting the human's answers.)*
+- Static architecture, repo layout & Pages deployment — see `docs/adr/0001-*.md`
+- API key handling & frontend security posture — see `docs/adr/0002-*.md`
+- OpenRouter integration: CORS, requests, streaming, models, errors — see `docs/adr/0003-*.md`
+- Persistence model in localStorage — see `docs/adr/0004-*.md`
+- Testing strategy & verification gate — see `docs/adr/0005-*.md`
 
 ### Open questions:
 ```bash

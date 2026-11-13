@@ -1,7 +1,8 @@
 # Crew Onboarding — read this first if you've been recruited
 
-Welcome to **⟦PROJECT-NAME⟧** — ⟦PROJECT-ONE-LINER⟧ <!-- one line: what this
-project is and who the human collaborator(s) are -->.
+Welcome to **OpenRouter Chat Harness** — a static, GitHub Pages–hosted chat
+client that calls OpenRouter straight from the browser with the user's own key;
+human collaborator: yuliazhu; founding AI seat: Switchboard 5.5.
 
 This document captures **80% of what every seat needs to know** so per-recruit
 briefs can be short deltas (name, color, mission). Fill the bracketed
@@ -60,8 +61,7 @@ the tmux hive.
 
 ## 1. What this project is
 
-⟦PROJECT-GOAL⟧ <!-- 1-3 sentences: the goal, the repo's role (product repo?
-coordination layer?), where implementation happens; same token as CLAUDE.md's -->
+A simple, functional AI chat interface published as a fully static site on GitHub Pages: the browser calls OpenRouter's Chat Completions API directly with `fetch()` and the user's own API key (BYOK), and keeps conversations and preferences in `localStorage` — no backend, database, serverless function, or proxy of any kind. This repo is both the product and its deliberation record: only `site/` (vanilla HTML/CSS/JS) is deployed, by a GitHub Actions workflow; ADRs, crew files, and scripts never ship.
 
 **Read first**, in order:
 1. `CLAUDE.md` — directives, project context, workflow

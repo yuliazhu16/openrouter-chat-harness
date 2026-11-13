@@ -526,8 +526,24 @@ gate:
     set -euo pipefail
     just instantiate-check
     python3 scripts/groups-lookup.py --validate
-    # ADD YOUR PROJECT'S OWN GATE HERE when it exists (test suite, build, linter)
-    echo "✅ gate green (day-one checks; project gate slot above)"
+    just secret-scan
+    # Project unit tests (`node --test`) join here in Phase 1 — see ADR-0005.
+    echo "✅ gate green (template checks + secret scan; unit tests join in Phase 1)"
+
+# BYOK app in a public repo: a committed OpenRouter key is the costliest
+# possible mistake. Scans tracked AND untracked-but-not-ignored files (i.e.
+# anything that could be committed next). Key shape: sk-or-v1-<64 hex>; the
+# 32+ threshold keeps doc placeholders like `sk-or-v1-…` from matching.
+[group('status')]
+[doc("Fail if anything resembling an OpenRouter API key is committable")]
+secret-scan:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    if git grep --untracked -nIE 'sk-or-v1-[0-9a-fA-F]{32,}' -- . ; then
+        echo "❌ secret-scan: possible OpenRouter API key above — remove it (and rotate the key if it was ever pushed)" >&2
+        exit 1
+    fi
+    echo "✅ secret-scan: no OpenRouter keys found"
 
 # Is this instance fully instantiated? Greps for remaining ⟦SIGIL⟧ placeholders
 # (the closed registry: docs/adr/templates/placeholders.yaml) and warns on
