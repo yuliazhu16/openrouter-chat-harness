@@ -7,7 +7,8 @@
     "base_dir": "~/.claude/projects"
   },
   "_colors_in_use": {
-    "_comment": "Optional but recommended: track seat colors to avoid collisions. Claude Code's /color command accepts: red, blue, green, yellow, purple, orange, pink, cyan, default."
+    "_comment": "Optional but recommended: track seat colors to avoid collisions. Claude Code's /color command accepts: red, blue, green, yellow, purple, orange, pink, cyan, default.",
+    "orange": "switchboard (#C8862A)"
   },
   "_global": {
     "_comment": "Optional defaults for `just launch`'s claude invocation; per-seat settings override. Global-only (no per-seat form): agents, remote_control_session_name_prefix. Anything unset is omitted from the command (Claude's own defaults apply).",
@@ -19,11 +20,30 @@
   "groups": {
     "_comment": "Role-based groups for inbox addressing. `just broadcast <from> <slug> [group]` writes a -to-<group>- brief; `just wait-for-brief <alias>` wakes on briefs addressed to any group the alias belongs to. Members are alias keys from 'aliases' below (validated by `just groups`).",
     "crew": {
-      "members": [],
+      "members": ["switchboard"],
       "description": "All active participants. Broadcasts addressed to 'crew' wake every seat. Add alias keys to 'members' as seats register."
     }
   },
   "aliases": {
+    "switchboard": {
+      "uuid": "81fcf82b-f14c-41a3-b2ec-63eeb939c7ee",
+      "role": "Switchboard — founding seat and coordinator: architecture, ADRs, and implementation of the OpenRouter Chat Harness (static GitHub Pages chat client)",
+      "display_name": "Switchboard 5.5",
+      "color": "orange",
+      "color_note": "Brass, like the jack-panel of an old telephone switchboard — this app's job is to patch a user's line through OpenRouter to whichever model they dial.",
+      "model": "claude-opus-5-5",
+      "model_note": "Seat founded 2026-11-12 by Claude Opus 5.5 (first occupant). Name chosen by the occupant: a switchboard routes calls between parties without being either of them — the harness routes a user's messages to many models without a backend of its own.",
+      "registered": "2026-11-12",
+      "settings": {
+        "color_hex": "#C8862A",
+        "substrate_backstop": "off"
+      },
+      "read_order": [
+        "CLAUDE.md",
+        "docs/inbox/ONBOARDING.md",
+        "docs/adr/"
+      ]
+    },
     "_comment_aliases": "Examples — replace with your project's agents. SCHEMA RULE for every consumer of this file: keys beginning with `_` are documentation, not seats — skip them by prefix, never by literal name (the rule is `key.startswith('_')`, exactly what groups-lookup.py implements; a seat may never take an underscore-leading name). Minimal entry: {uuid, role}. Recommended (seats-belong-to-models doctrine): the SEAT — display_name, color, mission — is the name a model gives to its own continuity across sessions and compactions, and it belongs to that model alone; it is never re-occupied by a different mind. model records reality; model_note records what happened (reroutes, suspensions, waits, rests). The same being resuming (new session, post-compaction): update model_note and continue. Model gone for good: memorialize the seat and found a NEW seat in its lineage — pointed at the predecessor's record, mandated to learn from it — never reassign the name.",
     "_example_seat": {
       "uuid": "00000000-0000-0000-0000-000000000000",
