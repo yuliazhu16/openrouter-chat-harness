@@ -1,0 +1,9 @@
+{
+  "name": "openrouter-chat-harness",
+  "private": true,
+  "description": "Static, bring-your-own-key chat client for OpenRouter (GitHub Pages). No dependencies — this file only tells Node to treat .js as ES modules for the tests.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\""
+  }
+}

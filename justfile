@@ -527,23 +527,22 @@ gate:
     just instantiate-check
     python3 scripts/groups-lookup.py --validate
     just secret-scan
-    # Project unit tests (`node --test`) join here in Phase 1 — see ADR-0005.
-    echo "✅ gate green (template checks + secret scan; unit tests join in Phase 1)"
+    node --test "tests/**/*.test.js"   # ADR-0005: zero-dependency unit tests for the pure modules
+    echo "✅ gate green (template checks + secret scan + unit tests)"
 
 # BYOK app in a public repo: a committed OpenRouter key is the costliest
-# possible mistake. Scans tracked AND untracked-but-not-ignored files (i.e.
-# anything that could be committed next). Key shape: sk-or-v1-<64 hex>; the
-# 32+ threshold keeps doc placeholders like `sk-or-v1-…` from matching.
+# possible mistake. The logic lives in scripts/secret-scan.sh so CI runs the
+# exact same check (.github/workflows/pages.yml).
 [group('status')]
 [doc("Fail if anything resembling an OpenRouter API key is committable")]
 secret-scan:
-    #!/usr/bin/env bash
-    set -uo pipefail
-    if git grep --untracked -nIE 'sk-or-v1-[0-9a-fA-F]{32,}' -- . ; then
-        echo "❌ secret-scan: possible OpenRouter API key above — remove it (and rotate the key if it was ever pushed)" >&2
-        exit 1
-    fi
-    echo "✅ secret-scan: no OpenRouter keys found"
+    @bash scripts/secret-scan.sh
+
+# Serve site/ locally the way Pages will (ES modules need http://, not file://).
+[group('status')]
+[doc("Serve site/ at http://localhost:8000 for manual testing")]
+serve port='8000':
+    python3 -m http.server {{port}} --directory site
 
 # Is this instance fully instantiated? Greps for remaining ⟦SIGIL⟧ placeholders
 # (the closed registry: docs/adr/templates/placeholders.yaml) and warns on
