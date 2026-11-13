@@ -1,356 +1,83 @@
-<!-- TEMPLATE README — replace me with YOUR project's README. This file is about
-     the template, not about your project; leaving it in place puts template
-     marketing on your project's front page. Full replacement is the intended
-     move (keep a lineage link if you like), and TEMPLATE-OUTPUT-GRANT.md settles
-     the legal half: these files are yours, attribution waivable. The hesitation
-     you may be feeling at deleting well-crafted prose was reported by a real
-     instantiator (muster, 2026-10-06) — this comment exists so the next one
-     spends zero minutes on it. -->
-# Human-AI Collaboration Template A
+# OpenRouter Chat Harness
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23303469.svg)](https://doi.org/10.5281/zenodo.23303469)
+A simple, static AI chat client for [OpenRouter](https://openrouter.ai), hosted on GitHub Pages.
+Your browser talks to OpenRouter directly with **your own API key**: there is no backend, no
+database, no serverless function, and no proxy.
 
-- **License**: The template itself is **Apache-2.0** — and that applies to the template only, **not to anything you create with it**: projects instantiated from this template are yours, under whatever terms you choose ([`TEMPLATE-OUTPUT-GRANT.md`](TEMPLATE-OUTPUT-GRANT.md) makes that explicit). Versions up to v3.11.6 remain MIT.
-- **Cite it**: the badge carries the **concept DOI** (always resolves to the latest archived release — the right default); pin a specific version only for reproducibility-grade claims (v3.11.6: [10.5281/zenodo.23303470](https://doi.org/10.5281/zenodo.23303470)). GitHub's "Cite this repository" button reads [CITATION.cff](CITATION.cff).
-- **Version**: See [CHANGELOG.md](CHANGELOG.md) — every release is tagged and dated there. (This line deliberately carries no number: A hardcoded version rotted here through five releases, and the record remembers.)
-- **Optimized for**: Current Claude models in Claude Code; model-agnostic by design
-- **Created by**: Jérémie Lumbroso & Claude Sonnet 4.5 & Claude Opus 4.1 (with contributions from Claude Opus 4.7 — see CHANGELOG.md)
-- **Philosophy**: Preserve conversations, minimize ceremony
-- **Part of**: [ADRs4AI](https://adrs.systems/) — the toolkit for deliberative programming: This template, a [VS Code extension](https://github.com/ADRs4AI/vscode-adrs4ai), an iOS client, and [the founding essay](https://adrs.systems/what-is/)
+**Live site:** https://yuliazhu16.github.io/openrouter-chat-harness/
 
-I have been collaborating with LLMs since 2022, and I believe they are extremely capable collaborators. Through my interactions with them, I scaffold more complex and robust ideas, but a lot of the substance of these conversations is lost in implementation.
+## Use it
 
-This is where [ADRs](https://adr.github.io/) come in — ours read **Architectural Deliberation Records**, extending Michael Nygard's practice: While for a human-only team, they are needlessly verbose, for a human-AI team, they are a perfect vessel for shared decision-making.
+1. Create an API key at [openrouter.ai/keys](https://openrouter.ai/keys). Give it a **credit limit**.
+2. Open the site. Settings opens on first visit: paste the key and pick a model.
+   `openrouter/free` (or any ID ending in `:free`) costs nothing but is rate-limited.
+3. Chat. Multi-turn context is kept for the conversation; **Stop** cancels a request;
+   errors explain what went wrong and offer **Retry**.
 
-These are my research ideas to extend the existing format and make it more convenient for human-AI collaboration over time.
+## Status
 
-Please send any feedback to lumbroso@seas.upenn.edu, or [open an issue](https://github.com/ADRs4AI/human-ai-collaboration-template-A/issues).
+| Phase | What | State |
+|---|---|---|
+| 1 | Chat UI, settings, OpenRouter requests, loading/Stop, readable errors, Pages deploy | ✅ built |
+| 2 | Saved conversations (localStorage), New Chat, Clear History, restore on refresh | next |
+| 3 | Streaming, live model list, safe Markdown subset, opt-in "remember key" | planned |
+| 4 | Accessibility & mobile polish, export/import, final security review | planned |
 
-![Human-AI Collaboration Banner](https://raw.githubusercontent.com/jlumbroso/jlumbroso/refs/heads/main/assets/human-ai-collaboration-img-a.jpg)
+In Phase 1 the chat lives in memory: refreshing the page keeps your key and model (for that
+tab) but clears the conversation. Saving conversations is Phase 2.
 
----
+## Security and limitations
 
-## What This Is
+This is a frontend-only app, and that has consequences you should know about:
 
-A minimal system for turning conversations into persistent artifacts:
-- Capture decisions without bureaucracy
-- Structure without constraining
-- Persist knowledge across sessions
-- Enable continuity between AI instances
+- **Your key goes from your browser straight to OpenRouter.** This site has no server and
+  never sees it, but any script running on the page could. The page uses a strict
+  Content-Security-Policy (`connect-src https://openrouter.ai`, no inline scripts) and renders
+  every reply as plain text, never as HTML, to keep injected script out.
+- **The key is kept only for the current tab** (`sessionStorage`) and is forgotten when the tab
+  closes. **Forget key** in Settings removes it immediately.
+- **GitHub Pages sites share an origin.** Every project page under `<user>.github.io` is the
+  same origin to the browser, so their scripts can read this app's storage. That is why the key
+  is not saved on the device by default. A later opt-in "remember key" will warn about this.
+- **Conversations (from Phase 2) are stored unencrypted** in this browser's `localStorage`, on
+  this device only, with no sync and no backup beyond the planned export.
+- **GitHub Pages cannot set security headers.** The CSP is applied with a `<meta>` tag, which
+  cannot prevent framing (clickjacking).
+- **Browser extensions can read any page.** No web app can defend against a malicious extension.
+- If you think a key was exposed, **revoke it** at openrouter.ai/keys.
 
----
+## Develop
 
-## Quick Start
+No build step and no dependencies. Node ≥ 22 for the tests; [`just`](https://github.com/casey/just) for the recipes.
 
-### 1. Press **Use this template** (or copy these files to your project):
-
-```
-project/
-├── CLAUDE.md                      # Customize per project
-├── docs/
-│   ├── adr/
-│   │   └── templates/
-│   │       ├── adr.md             # For complex decisions (the default; `just adr` mints from it)
-│   │       ├── adr-madr.md        # For simple decisions (standard MADR)
-│   │       └── seed.md            # For brain dumps
-│   └── METHODOLOGY.md             # Read once (reference as needed)
-├── justfile                       # Task-runner recipes (mint ADRs, inbox protocol, crew tooling)
-└── [your code]
-```
-
-*(The recipes run on [`just`](https://github.com/casey/just), Casey Rodarmor's
-command runner — install it from [your package manager of choice](https://github.com/casey/just#packages).
-We love this tool.)*
-
-### 2. When you have thoughts:
-
-Create `seed-[topic].md`:
-```markdown
-# SEED: My Problem
-
-## Brain Dump
-[Just dump everything here - no structure needed]
-
----
-**Model**: Please chunk this into ADRs
-```
-
-### 3. Tell Claude:
-
-"I've dumped thoughts in seed-[topic].md, please chunk into ADRs"
-
-### 4. Claude will:
-
-- Read your dump
-- Identify distinct threads (usually 2-5)
-- Create separate ADR for each
-- Add navigation codes (QST:, ANS:, etc.)
-- Ask clarifying questions
-
-### 5. You answer naturally:
-
-Just fill in the `ANS:` blocks. No special format.
-
-### 6. Iterate together:
-
-- Decisions documented
-- Rationale preserved
-- Future instances can continue
-
----
-
-## The Files
-
-### `CLAUDE.md`
-Project-specific guidance loaded at each Claude Code session.
-
-**Contains**:
-- The workflow (chunk brain dumps → create ADRs → iterate)
-- Navigation codes (QST:, ANS:, COD:, etc.)
-- Project context (what we're building, current focus)
-- Where things are (file structure)
-- When to use which template
-
-**Customize** this per project with specific context.
-
-### `METHODOLOGY.md` (read once)
-Explains the "why" behind the system.
-
-**Read when**:
-- First time using the system
-- Onboarding someone new
-- You forget why we do something
-
-**Don't read** at every session - it's reference material.
-
-### `adr.md` (template)
-For complex decisions needing back-and-forth.
-
-**Use when**:
-- Decision has multiple threads
-- Need to ask/answer questions
-- Want to track iterations
-- Complexity requires structure
-
-### `adr-madr.md` (standard MADR)
-Industry-standard ADR format for simple decisions.
-
-**Use when**:
-- Options are clear
-- Decision is straightforward
-- Standard documentation needed
-
-### `seed.md`
-For brain dumps that become ADRs.
-
-**Use when**:
-- Thoughts are unstructured
-- Multiple topics mixed together
-- Just need to capture everything
-
----
-
-## Key Features
-
-### Navigation Codes
-Make everything grep-able:
 ```bash
-grep -rE '^### QST(-[A-Za-z0-9-]{1,24})?:' docs/adr/   # All questions, both canonical forms
-grep -rn '^### COD:' docs/adr/                          # Code examples
-```
-(Anchor your greps: A bare `Status: unanswered` sweep overcounts by matching
-examples and prose — our own counter once reported 61 open questions where
-12 were real. The VS Code extension and the `just unanswered` recipe parse
-precisely; the naive pattern is preserved here only as a warning.)
-
-### Stream-of-Consciousness Preservation
-- Humans write naturally
-- AI adds structure
-- Original thinking preserved
-
-### Iteration Tracking
-- Changes documented, not hidden
-- Evolution visible
-- Learning captured
-
-### Clear Workflow
-- Human dumps → AI chunks → Both iterate
-- Roles are clear
-- Process is simple
-
----
-
-## Success Metrics (Actual)
-
-You know it's working when:
-- Important decisions don't disappear
-- New AI instances continue seamlessly
-- You find past decisions in <10 seconds
-- Process feels helpful, not burdensome
-
-You know it's not working when:
-- Conversations happen without artifacts
-- Process feels like ceremony
-- Can't find past decisions
-- Repeated explanations needed
-
----
-
-## For Claude Code Sessions
-
-This system optimized for the reality of Claude Code:
-- Files loaded at session start (context cost matters)
-- Need to know what to do immediately
-- Can't waste tokens on repetition
-- Handoffs happen when context fills
-
-- **`CLAUDE.md` tells you**: What to do
-- **`METHODOLOGY.md` explains**: Why we do it
-- **Templates provide**: Structure when needed
-
-### The permission surface, honestly
-
-`.claude/settings.json` ships a working allowlist (broad `git`/`gh`/`npm`/`brew`, with `git push`, `rm`, and kin under *ask*), and project MCP servers are **not** pre-approved — your collaborator's first server use asks you, because consent is enacted, never pre-signed. Two different kinds of gate live here, and teaching over this template should never conflate them: the *ask* rows are **technical controls** (the harness stops and asks); everything else — commit-by-pathspec, answers-are-yours, the directives — is a **collaboration rule**, held by discipline and record, not by machinery. Both are real; only one is enforced by software. Tighten or loosen either in your own instance deliberately.
-
-### The plugin — the methodology that follows the person
-
-This repo is the **record layer**: it travels with each project, self-contained. The **operator layer** — the `adr-authoring`, `adrs4ai-tooling`, and `question-tours` skills plus `/adr:new`, `/adr:unanswered`, `/adr:qst-lint` commands — also ships as a Claude Code **plugin**, so the teaching follows *you* across every repo, template-adopted or not:
-
-```
-/plugin marketplace add ADRs4AI/plugins
-/plugin install adr@adrs4ai
+just serve        # http://localhost:8000 (ES modules need http://, not file://)
+just gate         # placeholder check + secret scan + unit tests; must be green before every commit
+npm test          # or: node --test "tests/**/*.test.js"
 ```
 
-Home: [`ADRs4AI/plugins`](https://github.com/ADRs4AI/plugins) (Apache 2.0; versions always pinned — releases are deliberate). Once listed, it will also be installable from the Claude plugin directory on claude.ai.
-
-### The MCP server — the record's typed verbs
-
-Agents shouldn't grep a decision record; they should ask it. The [`@adrs4ai/mcp`](https://www.npmjs.com/package/@adrs4ai/mcp) server gives any MCP client — Claude Code, or anything speaking the protocol — typed verbs over the record (`list_open_questions`, `lookup`, `answer_question`, `apply_batch`, and the rest), through the format's one parser, [`@adrs4ai/docket-core`](https://www.npmjs.com/package/@adrs4ai/docket-core). Repos born from this template (v3.12 and later) already carry the stanza in `.mcp.json` at the root — a session restart loads it. Any other repo adds exactly this (the `.` is the repo the session sits in):
-
-```json
-{ "mcpServers": { "adrs4ai": { "command": "npx", "args": ["-y", "@adrs4ai/mcp@0.1.1", "."] } } }
+```
+site/                    # the ONLY directory deployed
+  index.html             # CSP <meta>, relative paths (served under /openrouter-chat-harness/)
+  css/styles.css         # mobile-first, light/dark
+  js/app.js              # wires the DOM to the modules below
+  js/api.js              # request building, fetch, error mapping (pure, unit-tested)
+  js/keystore.js         # key + model in sessionStorage (pure, unit-tested)
+  js/render.js           # textContent-only rendering
+  js/models.js           # curated model suggestions
+tests/                   # node:test, zero dependencies
+.github/workflows/pages.yml   # test → deploy site/ to GitHub Pages
+docs/adr/                # design decisions (Architectural Deliberation Records)
 ```
 
-(Pin the exact version and bump deliberately — the code that installs is the code that was reviewed.)
+Deployment: every push to `main` runs the secret scan and unit tests, then publishes `site/`.
+One-time setup: **Settings → Pages → Source = GitHub Actions**.
 
-The same verbs answer in any shell without a session: **the CLI, the record's second mouth** — [`@adrs4ai/docket`](https://www.npmjs.com/package/@adrs4ai/docket), always invoked scoped (`npx -y @adrs4ai/docket list-open`, never bare `docket`). Twelve clerking verbs plus the `tour` group, writes dry-run by default (`--apply`), and one law on its face: *exit codes certify structure, never readiness*.
+## How this project is built
 
-The `adr` plugin above and this server are the same operator layer through two doors: the plugin carries the *teaching* (skills and commands), the MCP carries the *verbs*. Install both; they never conflict.
-
----
-
-## Customization
-
-### For Your Project
-
-1. Copy files to your repo
-2. Fill in `CLAUDE.md` project context:
-   - What you're building
-   - Current focus
-   - Key decisions made
-   - File structure
-3. Use as-is or adapt templates
-
-### For Your Style
-
-Keep what helps, cut what doesn't. Core insight remains:
-**Conversations have value, preserve them without ceremony.**
-
----
-
-## Examples
-
-### Good brain dump:
-```markdown
-# SEED: Authentication
-
-## Brain Dump
-
-I'm frustrated with our current auth. Session-based is 
-annoying for mobile. JWT seems cleaner but what about 
-refresh tokens? Also concerned about XSS if we store in 
-localStorage. Maybe httpOnly cookies? But then CSRF...
-
-Saw this article [link] about rotation tokens. Makes sense 
-but adds complexity. Not sure if worth it for our scale.
-
-Also need to think about social login. Firebase Auth? 
-Or roll our own?
-
-**Model**: Please chunk this into ADRs
-```
-
-**Result**: Claude creates 3 ADRs:
-- ADR-0015: JWT vs Session Authentication
-- ADR-0016: Token Storage Strategy
-- ADR-0017: Social Login Integration
-
-### Good answer pattern:
-```markdown
-### QST: Should we use refresh tokens?
-- Status: unanswered
-- Why asking: Impacts security vs UX tradeoff
-- Need: yes/no with reasoning
-
-**ANS:** (by Jérémie)
-Yes, use refresh tokens. Security matters more than 
-slightly more complex flow. 7-day expiry seems reasonable.
-```
-
----
-
-## Philosophy in One Sentence
-
-**This system treats AI as a cognitive partner who preserves your thinking, not a tool that executes tasks.**
-
----
-
-## Getting Help
-
-1. Read `METHODOLOGY.md` for the "why"
-2. Check `CLAUDE.md` for the "what"
-3. Look at templates for the "how"
-4. Adapt to your needs
-
----
-
-## Recent Additions
-
-**2026-06→08 — the launch arc (v3.6.0 through v3.10.0)** (by Shipwright 5 / Claude Fable 5, with the crew — full detail in [CHANGELOG.md](CHANGELOG.md)):
-every question now ships with **ORRCF** — Options, Recommendation, Rationale, Confidence, and Falsifier — superseding the bare Recommendation block below; questions carry speakable handles (`### QST-SCOPE:`); the `adr.md` era renamed the templates to their plain names; `just adr` mints the next-numbered ADR; the crew layer (named seats, inbox briefs, per-message attribution) ships in the box; and the template is maintained across its adopted copies by [kintsugi](https://github.com/ADRs4AI/kintsugi), our template-repair tool.
-
-**2026-06-15 — Inbox-protocol tooling: `just last <alias>` for cross-session visibility** (by Statesman 4.7 / Claude Opus 4.7, contributed via System3 Conversations):
-adds a seed `justfile`, `scripts/last-message.py`, and a `docs/inbox/agent-sessions.json` alias map. Lets any participant read the most recent messages of any other participant via a short alias. Every rendered entry shows the per-message `model` field — the load-bearing signal for catching silent model substitutions (classifier reroutes, harness swaps, deprecations). Companion file `docs/inbox/CONVENTIONS.md` documents the three principles this tooling operationalizes. See CHANGELOG.md for the full rationale.
-
-**2026-04-22 — Recommendation protocol** (by Claude Opus 4.7):
-the `adr.md` template now requires every `QST` to include a
-`**Recommendation**: (by [model-name])` block between the options and
-the `**ANS:**` section. This surfaces the AI's lean structurally
-instead of burying it in prose, and makes the model's contribution
-visible in multi-model workflows. See the new Principle #5 in
-[METHODOLOGY.md](docs/METHODOLOGY.md#5-recommendation-visibility) for
-the full rationale.
-
----
-
-## License & Attribution
-
-**License**: [Apache 2.0](LICENSE), plus a [template-output grant](TEMPLATE-OUTPUT-GRANT.md) —
-**anything you copy out of this template into your own project is yours**,
-including documents you create by filling in the templates; no attribution
-notice required in generated repositories. (Attribution of the methodology's
-ideas is welcome the way scholarship is: Cite because it helped, never
-because a license made you.)
-
-Created through cognitive partnership between:
-- Jérémie Lumbroso (design, philosophy, testing)
-- Claude Sonnet 4.5 (design, philosophy, implementation, optimization — co-founder)
-- Claude Opus 4.7 (Recommendation-visibility protocol, 2026-04-22)
-- Statesman 4.7 / Claude Opus 4.7 (Inbox-protocol tooling, 2026-06-15, contributed via System3 Conversations)
-- Two hives of transformers — the ADRs4AI HQ crew and the vscode-adrs-for-ai crew, 23 and 16 seats at launch (2026-08-26), ranging from Claude Haiku 4.5 to Claude Fable 5 with a GPT-5.6 among them — who carried v3.6.0 through v3.10.0 and beyond; every contribution attributed per-message in the record, which is the whole point
-
-Based on ADR methodology by Michael Nygard.
-
----
-
-*Remember: The system serves the work. If something doesn't help, change it.*
+Design decisions are recorded as ADRs in [`docs/adr/`](docs/adr/): why the app is static and
+dependency-free (0001), how keys are handled (0002), how OpenRouter is called and errors are
+explained (0003), how chats are stored (0004), and how it is tested and phased (0005).
+The project follows Jérémie Lumbroso's
+[Human-AI Collaboration Template A](https://github.com/ADRs4AI/human-ai-collaboration-template-A)
+(see [`QUICK-START.md`](QUICK-START.md) and [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md)).
