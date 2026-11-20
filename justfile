@@ -538,11 +538,13 @@ gate:
 secret-scan:
     @bash scripts/secret-scan.sh
 
-# Serve site/ locally the way Pages will (ES modules need http://, not file://).
+# Serve site/ locally (ES modules need http://, not file://), with browser caching off so a
+# normal reload always picks up edited CSS/JS. Plain `python3 -m http.server` let Chrome pair
+# new HTML with cached old CSS/JS after Phase 2 — see scripts/dev-server.py.
 [group('status')]
-[doc("Serve site/ at http://localhost:8000 for manual testing")]
+[doc("Serve site/ at http://localhost:8000 for manual testing (no browser caching)")]
 serve port='8000':
-    python3 -m http.server {{port}} --directory site
+    python3 scripts/dev-server.py {{quote(port)}}
 
 # Is this instance fully instantiated? Greps for remaining ⟦SIGIL⟧ placeholders
 # (the closed registry: docs/adr/templates/placeholders.yaml) and warns on
