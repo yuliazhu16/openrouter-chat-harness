@@ -9,7 +9,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0001: Static site architecture, repo layout, and GitHub Pages deployment
 
 - **Date**: 2026-11-12
-- **Iteration**: 2
+- **Iteration**: 3
 - **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
@@ -93,6 +93,24 @@ A — Official Pages artifact flow. Accepted as recommended. (Blanket acceptance
 
 ---
 
+### QST-PAGES-CACHE: After a deploy, how do we stop browsers mixing new HTML with cached old CSS/JS?
+- Status: unanswered
+- Why asking: Found 2026-11-20 while diagnosing yuliazhu's broken local layout. Root cause: Phase 2 `index.html` was loaded with Phase 1 `styles.css` and `app.js` from the browser cache; reproduced in `scripts/ephemeral/2026-11-20-layout-diagnosis.mjs`. Locally this is fixed (`just serve` now sends `Cache-Control: no-cache`). **GitHub Pages sends `cache-control: max-age=600` on every file** (verified on the live site, 2026-11-20). Chrome re-checks the HTML on reload but serves still-fresh CSS/JS from cache. So for up to 10 minutes after the Phase 2 deploy, anyone who loaded the Phase 1 site recently, including you checking the deploy, gets the broken page. The new HTML structure doesn't work with the old CSS, so this deploy is the first where it matters. Pages headers can't be configured (no `_headers` file), and the no-build decision (QST-STACK-BUILD = A) rules out bundler hashing. **Needs an answer before the Phase 2 push.**
+- Need: pick a letter (or override — any shape answers)
+
+Options:
+- **A — Versioned asset URLs, enforced by the gate**: every CSS/JS reference carries `?v=<hash>`: the stylesheet and entry script in `index.html`, and every relative `import` in `site/js/*.js`, because cached modules are keyed by URL too. `<hash>` is the first 8 hex characters of a SHA-256 over `site/css` + `site/js`. `just stamp-assets` rewrites the stamps, and a unit test fails the gate if any stamp doesn't match the current hash. So a forgotten bump cannot reach `main`, and a changed file always gets a new URL. About 15 reference lines in `site/` plus one small script and one test. Still no build step: the files are served as written.
+- **B — Accept and document**: no code. The README says "just after an update, if the page looks broken, reload once more or wait ~10 minutes". The window recurs on every deploy that changes HTML/CSS/JS together.
+- **C — Manual version stamp**: as A, but `?v=2`, `?v=3`… bumped by hand. A test checks only that all stamps agree with each other. It is simpler, but a forgotten bump ships silently, which is the same class of failure we're fixing.
+
+**Recommendation**: (by Switchboard 5.5, Claude Opus 5.5, 2026-11-20)
+**A — Versioned asset URLs, enforced by the gate.** *Rationale*: the failure is real and was observed (you reported it, and the diagnosis script reproduces it). The Phase 2 deploy is the first release that hits it, and A removes it rather than documenting it. Enforcing through the gate follows how this project already prevents mistakes, as `secret-scan` does: "remember to bump" becomes "the gate won't let you forget". C keeps the forgettable step. B accepts a broken first impression on every update. *Confidence*: 0.75 — because the mechanism is verified (`max-age=600` measured; the cached-subresource mix reproduced locally), while how many visitors fall in the 10-minute window is unknown and probably small for a personal app. *If wrong*: if a few minutes of possible breakage after each deploy is acceptable for a personal tool, this flips to **B**. If you want stamping but find the hash script too much machinery, it flips to **C**.
+
+**ANS:** (by yuliazhu)
+[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+
+---
+
 ## Supporting Materials
 
 ### FIL: proposed-layout
@@ -165,7 +183,8 @@ A static, dependency-free chat client must be published from a public repo that 
 ## Open Follow-ups
 
 - [ ] Concern: the repo's `README.md` still describes the *template*, and it is the public face of the repo. Proposed: replace it with a project README (what it is, live URL, BYOK + security limitations from ADR-0002, how to run locally) in Phase 1, keeping the template docs reachable via `QUICK-START.md` / `docs/METHODOLOGY.md`. (`README.md` is a kintsugi *stencil*, so this will register as a deliberate local adaptation — that is expected.)
-- [ ] Unverified assumption: local preview via `python3 -m http.server -d site` behaves like Pages for ES modules (MIME types) — verify in Phase 1. (`file://` will NOT work: browsers block module imports from `file://`.)
+- [x] Unverified assumption: local preview via `python3 -m http.server -d site` behaves like Pages for ES modules (MIME types) — verify in Phase 1. (`file://` will NOT work: browsers block module imports from `file://`.)
+  - NOT: (Switchboard 5.5, 2026-11-20) MIME types: yes, verified in Phase 1. **Caching: no.** It sends no `Cache-Control`, so Chrome caches CSS/JS by heuristic and a reload paired Phase 2 HTML with Phase 1 CSS/JS (the layout yuliazhu reported). `just serve` now runs `scripts/dev-server.py` (`Cache-Control: no-cache`). The deployed-site side of the same issue is QST-PAGES-CACHE.
 
 ---
 
@@ -199,6 +218,11 @@ A static, dependency-free chat client must be published from a public repo that 
 - Human: yuliazhu
 - AI: Switchboard 5.5 (Claude Opus 5.5)
 - Outcome: Trigger: human's blanket acceptance of all recommendations in chat. Changes: both questions answered per recommendation; Decision section finalized. Status Draft → Accepted.
+
+### Iteration 3 (2026-11-20)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: yuliazhu's report of a broken local layout after Phase 2. Changes: root cause traced to browser caching of CSS/JS. The local dev server is fixed (follow-up annotated). New QST-PAGES-CACHE for the same risk on Pages (`max-age=600`), to be answered before the Phase 2 push. Accepted decisions unchanged.
 
 ---
 

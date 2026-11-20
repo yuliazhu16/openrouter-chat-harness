@@ -21,3 +21,4 @@ Architectural issues, workarounds, and compromises found during development (see
 - **Workaround**: tap the chip → Settings shows the full ID.
 - **Fix**: shorten the brand to an icon at narrow widths, or show only the part after `/` in the chip.
 - **Priority**: Low — Phase 4 mobile polish.
+- **Resolved 2026-11-20**: during the layout rework, phones hide the provider prefix in the chip (`claude-haiku-5.5`, full ID in the tooltip and Settings), with chip sizing measured so the header title keeps ≥ 90px at 390px. Checked by `scripts/ephemeral/2026-11-20-layout-check.mjs`. IDs longer than ~18 characters still truncate on phones.
