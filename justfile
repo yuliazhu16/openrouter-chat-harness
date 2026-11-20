@@ -546,6 +546,13 @@ secret-scan:
 serve port='8000':
     python3 scripts/dev-server.py {{quote(port)}}
 
+# Re-stamp every CSS/JS URL in site/ with the current content hash (ADR-0001 QST-PAGES-CACHE).
+# Run after editing anything in site/css or site/js; `just gate` fails until you do.
+[group('status')]
+[doc("Stamp site/ CSS/JS URLs with ?v=<content hash> (required after CSS/JS edits)")]
+stamp-assets:
+    node scripts/asset-stamp.mjs
+
 # Is this instance fully instantiated? Greps for remaining ⟦SIGIL⟧ placeholders
 # (the closed registry: docs/adr/templates/placeholders.yaml) and warns on
 # adopted-but-unlocked kintsugi state. Exits nonzero while anything remains —

@@ -22,7 +22,7 @@
   /* layout */
   --sidebar-w: 264px;  /* desktop sidebar */
   --topbar-h: 56px;    /* main header AND sidebar header, so their bottom borders line up */
-  --column: 768px;     /* reading width of messages + composer */
+  --column: 840px;     /* reading width of messages AND composer (spec: ~800–900px) */
   --gutter: 1rem;
 
   color-scheme: light dark;
@@ -351,7 +351,7 @@ code { font-family: var(--mono); font-size: 0.9em; }
   width: min(var(--sidebar-w), 85vw);
   display: flex;
   flex-direction: column;
-  padding: 0 0.75rem max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  padding: 0 1rem max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   background: var(--sidebar-bg);
   border-right: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -379,7 +379,7 @@ code { font-family: var(--mono); font-size: 0.9em; }
   gap: 0.5rem;
   height: var(--topbar-h);
   flex: none;
-  margin-inline: -0.75rem;
+  margin-inline: -1rem;
   padding-inline: 1rem 0.5rem;
   border-bottom: 1px solid var(--border);
 }

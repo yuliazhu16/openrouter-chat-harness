@@ -15,8 +15,8 @@
   <meta name="description" content="A static, bring-your-own-key chat client for OpenRouter. Runs entirely in your browser.">
   <title>OpenRouter Chat Harness</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css">
-  <script type="module" src="./js/app.js"></script>
+  <link rel="stylesheet" href="./css/styles.css?v=ca07c07f">
+  <script type="module" src="./js/app.js?v=ca07c07f"></script>
 </head>
 <body>
   <!-- Layout (styles.css): .shell is a two-column grid on wide screens — sidebar | main panel.
@@ -74,7 +74,7 @@
       <form class="composer" id="composer">
         <div class="composer__box">
           <label for="prompt" class="visually-hidden">Message</label>
-          <textarea id="prompt" rows="1" placeholder="Message…" autocomplete="off"></textarea>
+          <textarea id="prompt" rows="2" placeholder="Message…" autocomplete="off"></textarea>
           <button type="submit" class="btn btn--primary" id="send">Send</button>
           <button type="button" class="btn btn--stop" id="stop" hidden>Stop</button>
         </div>

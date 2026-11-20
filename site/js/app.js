@@ -8,11 +8,11 @@
 // persists what it can) and the few UI-only variables below. render() redraws the page
 // from that state, so every action is "change state, then render()".
 
-import { ChatError, sendChat, toApiMessages } from './api.js';
-import { createKeystore } from './keystore.js';
-import { SUGGESTED_MODELS } from './models.js';
-import { renderConversationItem, renderMessage, renderPending } from './render.js';
-import { createChatStore } from './storage.js';
+import { ChatError, sendChat, toApiMessages } from './api.js?v=ca07c07f';
+import { createKeystore } from './keystore.js?v=ca07c07f';
+import { SUGGESTED_MODELS } from './models.js?v=ca07c07f';
+import { renderConversationItem, renderMessage, renderPending } from './render.js?v=ca07c07f';
+import { createChatStore } from './storage.js?v=ca07c07f';
 
 const keystore = createKeystore();
 const chats = createChatStore();
