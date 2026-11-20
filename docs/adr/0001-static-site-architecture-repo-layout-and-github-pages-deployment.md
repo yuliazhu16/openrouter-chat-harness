@@ -9,7 +9,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0001: Static site architecture, repo layout, and GitHub Pages deployment
 
 - **Date**: 2026-11-12
-- **Iteration**: 4
+- **Iteration**: 5
 - **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
@@ -94,7 +94,7 @@ A — Official Pages artifact flow. Accepted as recommended. (Blanket acceptance
 ---
 
 ### QST-PAGES-CACHE: After a deploy, how do we stop browsers mixing new HTML with cached old CSS/JS?
-- Status: unanswered — option A implemented provisionally 2026-11-20 (Iteration 4) to unblock yuliazhu's second layout report; awaiting confirm or override
+- Status: answered
 - Why asking: Found 2026-11-20 while diagnosing yuliazhu's broken local layout. Root cause: Phase 2 `index.html` was loaded with Phase 1 `styles.css` and `app.js` from the browser cache; reproduced in `scripts/ephemeral/2026-11-20-layout-diagnosis.mjs`. Locally this is fixed (`just serve` now sends `Cache-Control: no-cache`). **GitHub Pages sends `cache-control: max-age=600` on every file** (verified on the live site, 2026-11-20). Chrome re-checks the HTML on reload but serves still-fresh CSS/JS from cache. So for up to 10 minutes after the Phase 2 deploy, anyone who loaded the Phase 1 site recently, including you checking the deploy, gets the broken page. The new HTML structure doesn't work with the old CSS, so this deploy is the first where it matters. Pages headers can't be configured (no `_headers` file), and the no-build decision (QST-STACK-BUILD = A) rules out bundler hashing. **Needs an answer before the Phase 2 push.**
 - Need: pick a letter (or override — any shape answers)
 
@@ -107,7 +107,7 @@ Options:
 **A — Versioned asset URLs, enforced by the gate.** *Rationale*: the failure is real and was observed (you reported it, and the diagnosis script reproduces it). The Phase 2 deploy is the first release that hits it, and A removes it rather than documenting it. Enforcing through the gate follows how this project already prevents mistakes, as `secret-scan` does: "remember to bump" becomes "the gate won't let you forget". C keeps the forgettable step. B accepts a broken first impression on every update. *Confidence*: 0.75 — because the mechanism is verified (`max-age=600` measured; the cached-subresource mix reproduced locally), while how many visitors fall in the 10-minute window is unknown and probably small for a personal app. *If wrong*: if a few minutes of possible breakage after each deploy is acceptable for a personal tool, this flips to **B**. If you want stamping but find the hash script too much machinery, it flips to **C**.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — Versioned asset URLs, enforced by the gate: accepted as implemented. Given by approving the implementation that includes it (chat, 2026-11-20): "I approve the current Phase 2 implementation and UI changes for deployment." The provisional status ends here. (Transcribed by Switchboard 5.5.)
 
 ---
 
@@ -178,6 +178,9 @@ A static, dependency-free chat client must be published from a public repo that 
 - `tests/` and `package.json` live at repo root, outside `site/`, so they are never published.
 - Adding a framework later means revisiting QST-STACK-BUILD (flip to C), not patching around it.
 
+### Added 2026-11-20 (Iteration 5): cache-safe asset URLs
+- **Every CSS/JS URL carries `?v=<content hash>`** (stylesheet, entry script, every relative module import), written by `just stamp-assets` (`scripts/asset-stamp.mjs`) and enforced by `tests/asset-stamps.test.js` in `just gate` and CI. *Rationale*: browsers cache by URL, and both GitHub Pages (`max-age=600`) and a plain local server (heuristic caching) can otherwise pair new HTML with old CSS/JS. That happened twice locally during Phase 2. Still no build step: files are served as written. *Workflow cost*: run `just stamp-assets` after editing `site/css` or `site/js`; the gate says so if you forget. *Reopen if*: a build step is ever adopted (QST-STACK-BUILD → C), since bundler hashing supersedes this. (QST-PAGES-CACHE = A)
+
 ---
 
 ## Open Follow-ups
@@ -228,6 +231,11 @@ A static, dependency-free chat client must be published from a public repo that 
 - Human: yuliazhu
 - AI: Switchboard 5.5 (Claude Opus 5.5)
 - Outcome: Trigger: yuliazhu's second layout report ("must scroll the page to reach the input; input much too narrow"). Evidence: port 8000 was still the pre-fix `python3 -m http.server` (started 17:53, never restarted), so the Phase 1 CSS/JS Chrome fetched then stayed heuristically fresh until about 10:26 the next day. Rendering current HTML with Phase 1 CSS/JS reproduced every symptom with computed dimensions: sidebar 1440×252 with 0 padding, page 1168px tall in a 900px window, composer at y=1084, textarea 212px (`scripts/ephemeral/2026-11-20-stale-mix-render.mjs`). Telling the human to restart the server and hard-reload had already failed once, so QST-PAGES-CACHE **option A was implemented provisionally**: `scripts/asset-stamp.mjs`, `just stamp-assets`, and `tests/asset-stamps.test.js` in the gate. Replaying the human's exact path (plain server, cached Phase 1, ordinary reload) now renders identically to a fresh profile. The ANS slot is left for yuliazhu: confirm A, or override with B/C (reverting is removing the stamps, the script, and the test). Known residual: within Pages' 10-minute window, a cached *old* HTML page whose CSS cache entry was evicted could fetch new CSS under its old stamped URL (Pages ignores query strings). That needs the two cache entries to expire separately, which is rare because they are fetched together.
+
+### Iteration 5 (2026-11-20)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: yuliazhu approved the current Phase 2 implementation for deployment, which includes the provisional option A. Changes: QST-PAGES-CACHE answered A (transcribed with the approval quoted verbatim); the Decision section gains the cache-safe asset URLs consequence. Status stays Accepted.
 
 ---
 
