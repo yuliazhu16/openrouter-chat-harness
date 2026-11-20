@@ -51,7 +51,7 @@ const GEOMETRY = `(() => {
     shellDisplay: getComputedStyle(document.querySelector('.shell')).display,
     sidebarVisibility: getComputedStyle(document.getElementById('sidebar')).visibility,
     sidebar: R('#sidebar'), sidebarHead: R('.sidebar__head'), topbar: R('.topbar'), banner: banner.hidden ? null : R('#storage-banner'),
-    chat: R('#chat'), composer: R('#composer'), box: R('.composer__box'), app: R('.app'),
+    chat: R('#chat'), composer: R('#composer'), box: R('.composer__box'), app: R('.app'), messages: R('#messages'), textarea: R('#prompt'),
     chatScrollable: chat.scrollHeight > chat.clientHeight + 4,
     lastMsgVisible: last ? Math.round(last.bottom) <= Math.round(chat.getBoundingClientRect().bottom) + 1 : null,
     title: document.getElementById('chat-title').textContent,
@@ -140,7 +140,21 @@ try {
   check('desktop: main panel fills the rest of the width', near(g.app.x, g.sidebar.r) && g.app.r === 1440, JSON.stringify(g.app));
   check('desktop: sidebar header and chat header share one bottom line', near(g.sidebarHead.b, g.topbar.b), `${g.sidebarHead.b} vs ${g.topbar.b}`);
   verticalContract('desktop', g, 900);
-  check('desktop: composer centred on the reading column (≤ 768px)', g.box.w <= 768 && near(g.box.x + g.box.w / 2, g.app.x + g.app.w / 2, 2), JSON.stringify(g.box));
+  check('desktop: conversation column 800–900px wide, centred in the main panel', g.messages.w >= 800 && g.messages.w <= 900 && near(g.messages.x + g.messages.w / 2, g.app.x + g.app.w / 2, 2), JSON.stringify(g.messages));
+  check('desktop: composer uses the same content width as the conversation', near(g.box.x, g.messages.x) && near(g.box.w, g.messages.w), `box ${JSON.stringify(g.box)} vs messages x=${g.messages.x} w=${g.messages.w}`);
+  check('desktop: input is multiline-sized (≥ 2 lines) and fills the field', g.textarea.h >= 44 && g.textarea.w >= g.box.w - 140, JSON.stringify(g.textarea));
+  // Only the message list scrolls: try to scroll the page and the list, then re-measure.
+  const scrollTest = await evaluate(`(() => {
+    const chat = document.getElementById('chat');
+    const before = { top: document.querySelector('.topbar').getBoundingClientRect().top, comp: document.getElementById('composer').getBoundingClientRect().bottom };
+    window.scrollTo(0, 5000); document.scrollingElement.scrollTop = 5000;
+    chat.scrollTop = 0;
+    const r = { pageScrollY: window.scrollY, chatScrolledTo: chat.scrollTop,
+      topbarTop: document.querySelector('.topbar').getBoundingClientRect().top, composerBottom: document.getElementById('composer').getBoundingClientRect().bottom, before };
+    chat.scrollTop = chat.scrollHeight;
+    return r;
+  })()`);
+  check('desktop: the page itself cannot scroll; header and composer stay put while the message list scrolls', scrollTest.pageScrollY === 0 && scrollTest.chatScrolledTo === 0 && scrollTest.topbarTop === 0 && Math.round(scrollTest.composerBottom) === 900, JSON.stringify(scrollTest));
   const escapees = await evaluate(`[...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().bottom > innerHeight + 1 && !e.closest('#chat, dialog')).length
     + ' outside #chat; inside #chat but not clipped by it: ' + [...document.querySelectorAll('#chat *')].filter(e => getComputedStyle(e).position === 'absolute' && e.offsetParent && !document.getElementById('chat').contains(e.offsetParent)).length`);
   check('desktop: no page scroll, no horizontal overflow', g.docW === 1440 && g.docH === 900, `${g.docW}×${g.docH}; ${escapees}`);
@@ -178,6 +192,11 @@ try {
   check('phone: header spans the full width', g.topbar.x === 0 && g.topbar.w === 390, JSON.stringify(g.topbar));
   verticalContract('phone', g, g.vh);
   check('phone: no page scroll (document is exactly the viewport height)', g.docH === 844, String(g.docH));
+  check('phone: composer uses the same content width as the conversation', near(g.box.x, g.messages.x) && near(g.box.w, g.messages.w), `box x=${g.box.x} w=${g.box.w} vs messages x=${g.messages.x} w=${g.messages.w}`);
+  const phoneScroll = await evaluate(`(() => { window.scrollTo(0, 5000); const c = document.getElementById('chat'); c.scrollTop = 0;
+    const r = { pageScrollY: window.scrollY, chatScrolledTo: c.scrollTop, topbarTop: document.querySelector('.topbar').getBoundingClientRect().top, composerBottom: Math.round(document.getElementById('composer').getBoundingClientRect().bottom) };
+    c.scrollTop = c.scrollHeight; return r; })()`);
+  check('phone: the page cannot scroll; only the message list does', phoneScroll.pageScrollY === 0 && phoneScroll.chatScrolledTo === 0 && phoneScroll.topbarTop === 0 && phoneScroll.composerBottom === 844, JSON.stringify(phoneScroll));
   const chip = await evaluate(`(() => { const c = document.getElementById('model-chip'); return { text: c.innerText.trim(), full: c.textContent, fits: c.scrollWidth <= c.clientWidth + 1 }; })()`);
   check('phone: model chip shows the model name without the provider, untruncated', chip.text === 'claude-haiku-5.5' && chip.full === 'anthropic/claude-haiku-5.5' && chip.fits, JSON.stringify(chip));
   check('phone: chat title keeps readable room (≥ 90px)', (await evaluate(`document.getElementById('chat-title').getBoundingClientRect().width`)) >= 90);
