@@ -36,7 +36,7 @@ const check = (name, ok, extra = '') => {
   console.log(`${ok ? '✅' : '❌'} ${name}${extra ? ` — ${extra}` : ''}`);
 };
 
-const server = spawn('python3', ['-m', 'http.server', String(SITE_PORT), '--bind', '127.0.0.1', '--directory', 'site'], {
+const server = spawn('python3', ['scripts/dev-server.py', String(SITE_PORT)], {
   stdio: 'ignore',
 });
 const chrome = spawn(
@@ -147,7 +147,7 @@ try {
   await send('Runtime.enable');
   await send('Log.enable');
   await send('Page.enable');
-  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 2, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 2, mobile: false });
 
   // 0. Phase 1 → 2: a tab that had the model in sessionStorage keeps it
   await load();
@@ -195,7 +195,7 @@ try {
   check('while away: the open chat is untouched', same(await evaluate(BODIES), ['second chat', 'pong']));
   await evaluate(`[...document.querySelectorAll('#conv-list .conv__open')].find(b => b.textContent === 'slow question').click()`);
   check('the late reply landed in the chat it was sent from', same(await evaluate(BODIES), ['slow question', 'slow answer']));
-  await screenshot('p2-1-desktop-sidebar.png', 1280, 800, false);
+  await screenshot('p2-1-desktop-sidebar.png', 1440, 900, false);
 
   // 4. reload while waiting
   await evaluate(`document.getElementById('new-chat').click()`);
@@ -257,7 +257,7 @@ try {
     return { composerBottom: Math.round(c.bottom), composerHeight: Math.round(c.height), viewport: Math.round(document.querySelector('.shell').getBoundingClientRect().bottom) };
   })()`);
   check('phone: composer is pinned to the bottom and not stretched', layout.composerBottom === layout.viewport && layout.composerHeight < 120, JSON.stringify(layout));
-  await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 2, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 2, mobile: false });
   await sleep(300);
   const desk = await evaluate(`(() => {
     const c = document.getElementById('composer').getBoundingClientRect();
