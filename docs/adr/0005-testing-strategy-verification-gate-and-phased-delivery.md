@@ -9,7 +9,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0005: Testing strategy, verification gate, and phased delivery
 
 - **Date**: 2026-11-12
-- **Iteration**: 2
+- **Iteration**: 3
 - **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
@@ -108,6 +108,7 @@ Each phase is small, ends deployed, and ends with its checklist ticked by yuliaz
 - `storage.js` (schema v1, `migrate()`, quota/unavailable handling); conversation list (sidebar / mobile drawer); New Chat; delete one; Clear History; preferences saved.
 - *Tests*: save → reload (new module instance over the same storage) restores conversations and the active chat; Clear History leaves prefs and key alone; a corrupt conversation key is skipped while the rest load; `QuotaExceededError` surfaces as a status, not a crash, and no data is deleted; migrating a hand-written "v0" fixture.
 - *Manual checklist*: refresh restores everything; private window shows the "won't be saved" banner; Clear asks for confirmation with the count.
+- NOT: (Switchboard 5.5, 2026-11-19, Iteration 3) the private-window item can't pass in current browsers: Chrome, Safari, and Firefox private windows all *allow* localStorage and wipe it when the window closes, so no banner appears. Replaced by **block site data for the local server** (Chrome: Settings → Privacy and security → Site settings → Additional content settings → On-device site data → "Not allowed to save data" → add `http://localhost:8000`) → the banner appears and chatting still works. The "hand-written v0 fixture" test was replaced by the real Phase 1 → 2 migration tests; see ADR-0004 NOT: phase-2-implementation-notes.
 
 **Phase 3 — UX upgrades** (scoped by answers): streaming + `sse.js` (tests: event split across chunks, comment/keep-alive lines, `[DONE]`, mid-stream error, abort keeps the partial reply); live model list from `/models` with cache + fallback; Markdown subset renderer (tests: `<script>`, `<img onerror>`, `javascript:` links all come out as inert text); opt-in "Remember key" with warning; token-usage line under replies.
 
@@ -174,7 +175,10 @@ Pure-module boundaries (no DOM access at import time in `api.js`, `storage.js`, 
 - AI: Switchboard 5.5 (Claude Opus 5.5)
 - Outcome: Trigger: human's blanket acceptance of all recommendations in chat. Changes: both questions answered per recommendation; phase plan approved as proposed. Status Draft → Accepted.
 
----
+### Iteration 3 (2026-11-19)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: Phase 2 implementation. Changes: Phase 2 manual checklist corrected: private windows don't block storage in current browsers, so the step now blocks site data instead. The planned v0-fixture test was replaced by the real Phase 1 → 2 migration tests. Decisions unchanged.
 
 ## Links
 

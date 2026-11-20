@@ -13,18 +13,21 @@ database, no serverless function, and no proxy.
    `openrouter/free` (or any ID ending in `:free`) costs nothing but is rate-limited.
 3. Chat. Multi-turn context is kept for the conversation; **Stop** cancels a request;
    errors explain what went wrong and offer **Retry**.
+4. Your conversations are saved in this browser and listed in the sidebar (the ☰ drawer on
+   phones): **New chat** starts another, tap one to reopen it, **×** deletes one, and
+   **Clear history** deletes them all (after asking). Your key and model choice are kept.
 
 ## Status
 
 | Phase | What | State |
 |---|---|---|
 | 1 | Chat UI, settings, OpenRouter requests, loading/Stop, readable errors, Pages deploy | ✅ built |
-| 2 | Saved conversations (localStorage), New Chat, Clear History, restore on refresh | next |
-| 3 | Streaming, live model list, safe Markdown subset, opt-in "remember key" | planned |
+| 2 | Saved conversations (localStorage), New Chat, Clear History, restore on refresh | ✅ built |
+| 3 | Streaming, live model list, safe Markdown subset, opt-in "remember key" | next |
 | 4 | Accessibility & mobile polish, export/import, final security review | planned |
 
-In Phase 1 the chat lives in memory: refreshing the page keeps your key and model (for that
-tab) but clears the conversation. Saving conversations is Phase 2.
+Refreshing the page restores your conversations and model choice. Your key survives a refresh
+but not closing the tab, so you paste it again in a new tab.
 
 ## Security and limitations
 
@@ -39,8 +42,15 @@ This is a frontend-only app, and that has consequences you should know about:
 - **GitHub Pages sites share an origin.** Every project page under `<user>.github.io` is the
   same origin to the browser, so their scripts can read this app's storage. That is why the key
   is not saved on the device by default. A later opt-in "remember key" will warn about this.
-- **Conversations (from Phase 2) are stored unencrypted** in this browser's `localStorage`, on
-  this device only, with no sync and no backup beyond the planned export.
+- **Conversations and your model choice are stored unencrypted** in this browser's
+  `localStorage`, on this device only, with no sync and no backup beyond the planned export.
+  Other pages on the same `github.io` origin can read them. **Clear history** deletes every
+  conversation but not your key or preferences.
+- **If saving fails, the app says so.** When storage is blocked or full, a banner says chats
+  aren't being saved. Nothing is ever deleted automatically, and a saved chat that can't be
+  read is skipped and left in place.
+- **Two tabs on the same chat:** if you continue one conversation in two tabs at once, the
+  tab that saves last wins. Separate chats in separate tabs are fine.
 - **GitHub Pages cannot set security headers.** The CSP is applied with a `<meta>` tag, which
   cannot prevent framing (clickjacking).
 - **Browser extensions can read any page.** No web app can defend against a malicious extension.
@@ -62,7 +72,8 @@ site/                    # the ONLY directory deployed
   css/styles.css         # mobile-first, light/dark
   js/app.js              # wires the DOM to the modules below
   js/api.js              # request building, fetch, error mapping (pure, unit-tested)
-  js/keystore.js         # key + model in sessionStorage (pure, unit-tested)
+  js/keystore.js         # API key in sessionStorage (pure, unit-tested)
+  js/storage.js          # conversations + prefs in localStorage, schema v1 (pure, unit-tested)
   js/render.js           # textContent-only rendering
   js/models.js           # curated model suggestions
 tests/                   # node:test, zero dependencies
