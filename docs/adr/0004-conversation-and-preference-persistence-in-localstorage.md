@@ -9,8 +9,8 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0004: Conversation and preference persistence in localStorage
 
 - **Date**: 2026-11-12
-- **Iteration**: 4
-- **Status**: Accepted
+- **Iteration**: 5
+- **Status**: Implemented
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
 **TL;DR**: Multiple conversations stored in versioned, namespaced localStorage keys (an index plus one key per conversation), restored on load, with New Chat / delete-one / Clear-all semantics and graceful handling of a full or unavailable storage.
@@ -192,7 +192,7 @@ The v1 schema above with a `schema` version and `migrate()`; one key per convers
 - [ ] Answer QST-CONVERSATIONS and QST-CLEAR-SCOPE - Owner: yuliazhu
 - [x] Implement `storage.js` (schema v1, migrate, quota handling) with unit tests in Phase 2 - Owner: Switchboard 5.5 (2026-11-19; local, awaiting yuliazhu's review before push)
 - [x] Answer QST-MULTI-TAB and QST-CONV-MODEL - Owner: yuliazhu (2026-11-19)
-- [ ] Run the Phase 2 manual checklist (ADR-0005) and approve the push - Owner: yuliazhu
+- [x] Run the Phase 2 manual checklist (ADR-0005) and approve the push - Owner: yuliazhu (approved 2026-11-20; deployed `dd535fc`)
 
 ---
 
@@ -228,6 +228,11 @@ The v1 schema above with a `schema` version and `migrate()`; one key per convers
 - Human: yuliazhu
 - AI: Switchboard 5.5 (Claude Opus 5.5)
 - Outcome: Trigger: yuliazhu accepted both new recommendations in chat. Changes: QST-MULTI-TAB = A now, B in Phase 4; QST-CONV-MODEL = A. Both are recorded in the Decision section with rationale and reopening conditions, and cross-tab sync was added to Open Follow-ups. No code change: both were already built as recommended. Status stays Accepted until the Phase 2 deploy is approved.
+
+### Iteration 5 (2026-11-20)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: yuliazhu completed the local Phase 2 review ("I've verified that chat conversations are successfully restored from localStorage after refreshing the browser. I approve the current Phase 2 implementation and UI changes for deployment.") Deployed: commit `dd535fc`, Actions run 44649428848 (test ✓, deploy ✓, 48/48 unit tests on the CI runner). Live verification on https://yuliazhu16.github.io/openrouter-chat-harness/ passed 9/9 (`scripts/ephemeral/2026-11-20-live-verify.mjs`), including the real CORS round-trip from the github.io origin, restore after reload, the key absent from localStorage, layout at 1440×900 and 390×844, and no CSP violations. Status Accepted → **Implemented**. Export/import (Phase 4) and cross-tab sync (Phase 4) remain open follow-ups.
 
 ---
 
