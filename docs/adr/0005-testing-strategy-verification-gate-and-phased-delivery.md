@@ -9,7 +9,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0005: Testing strategy, verification gate, and phased delivery
 
 - **Date**: 2026-11-12
-- **Iteration**: 3
+- **Iteration**: 4
 - **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
@@ -112,7 +112,7 @@ Each phase is small, ends deployed, and ends with its checklist ticked by yuliaz
 
 **Phase 3 — UX upgrades** (scoped by answers): streaming + `sse.js` (tests: event split across chunks, comment/keep-alive lines, `[DONE]`, mid-stream error, abort keeps the partial reply); live model list from `/models` with cache + fallback; Markdown subset renderer (tests: `<script>`, `<img onerror>`, `javascript:` links all come out as inert text); opt-in "Remember key" with warning; token-usage line under replies.
 
-**Phase 4 — Hardening & docs.** Accessibility pass (labels, focus order, `aria-live` for new replies, contrast in light/dark); mobile polish (viewport, safe-area insets, on-screen keyboard not covering the input); export/import JSON; final README security section; optional OAuth PKCE (ADR-0002, QST-OAUTH-PKCE) if un-deferred.
+**Phase 4 — Hardening & docs.** Accessibility pass (labels, focus order, `aria-live` for new replies, contrast in light/dark); mobile polish (viewport, safe-area insets, on-screen keyboard not covering the input); export/import JSON; final README security section; optional OAuth PKCE (ADR-0002, QST-OAUTH-PKCE) if un-deferred; cross-tab sync via the `storage` event (ADR-0004 QST-MULTI-TAB, added Iteration 4).
 
 ### COD: gate-after-phase-1
 ```just
@@ -179,6 +179,11 @@ Pure-module boundaries (no DOM access at import time in `api.js`, `storage.js`, 
 - Human: yuliazhu
 - AI: Switchboard 5.5 (Claude Opus 5.5)
 - Outcome: Trigger: Phase 2 implementation. Changes: Phase 2 manual checklist corrected: private windows don't block storage in current browsers, so the step now blocks site data instead. The planned v0-fixture test was replaced by the real Phase 1 → 2 migration tests. Decisions unchanged.
+
+### Iteration 4 (2026-11-19)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: yuliazhu confirmed the Iteration 3 checklist correction ("I also agree with your correction to ADR-0005 regarding private browsing and blocked storage") and accepted ADR-0004 QST-MULTI-TAB. Changes: Phase 4 scope gains cross-tab sync. Decisions unchanged.
 
 ## Links
 

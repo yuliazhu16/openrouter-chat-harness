@@ -9,7 +9,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0004: Conversation and preference persistence in localStorage
 
 - **Date**: 2026-11-12
-- **Iteration**: 3
+- **Iteration**: 4
 - **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
@@ -90,7 +90,7 @@ A — All conversations; nothing else (key and preferences kept; confirm dialog 
 ---
 
 ### QST-MULTI-TAB: Two tabs open on the same conversation — accept last-write-wins, or sync tabs?
-- Status: unanswered
+- Status: answered
 - Why asking: Found while implementing Phase 2 (2026-11-19). Each tab keeps its conversations in memory and rewrites a conversation's whole key when a message is added. If the same chat is continued in two tabs, the tab that writes last overwrites the other's new messages. *New* chats started in different tabs are safe (load scans every `orch:conv:*` key, so a chat dropped from the index by another tab still comes back; there is a test for this). Deletions in one tab are also not seen by the other until it reloads. The accepted decision didn't address multiple tabs.
 - Need: pick a letter (or override — any shape answers)
 
@@ -103,12 +103,12 @@ Options:
 **A now, B in Phase 4.** *Rationale*: losing data needs the *same* chat to be continued in two tabs between reloads, which is rare for a personal chat client, and the index scan already prevents the more common loss (new chats in two tabs). B is the right long-term fix and is cheap, but it adds re-render-on-external-change paths. Those are better built next to Phase 4's accessibility and focus work than squeezed into Phase 2. C blocks a normal browser habit. *Confidence*: 0.7 — because how often this happens depends on how you use tabs, which I can't observe. *If wrong*: if you often keep the app open in more than one tab, this flips to **B** now.
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A now, B in Phase 4 — accepted as recommended. Accept last-write-wins for the same conversation continued in two tabs; document the limitation (README + docs/TECHNICAL-DEBT.md TD-001); defer cross-tab sync via the `storage` event to Phase 4. (Given in chat, 2026-11-19 — transcribed by Switchboard 5.5.)
 
 ---
 
 ### QST-CONV-MODEL: When reopening an old conversation, should the model switch to the one it last used?
-- Status: unanswered
+- Status: answered
 - Why asking: Found while implementing Phase 2. The model is a single saved preference (`orch:prefs.model`, top-bar chip) used for every send. Each index entry records the model of the conversation's last reply, but reopening a chat does not change the selected model. So continuing yesterday's Haiku chat after starting a Sonnet chat today sends it to Sonnet. That is valid (OpenRouter allows switching models mid-conversation), but it may surprise you.
 - Need: pick a letter (or override — any shape answers)
 
@@ -121,7 +121,7 @@ Options:
 **A — One global model (as built).** *Rationale*: it matches ADR-0003's single model picker and the requirement "persist user preferences such as the selected model" (a preference, singular). Behaviour stays predictable: what the chip shows is what is sent. The per-reply model label already makes mixed-model chats visible. *Confidence*: 0.65 — because chat clients differ here (some pin the model per chat). *If wrong*: if you switch models often and expect each chat to remember its own, this flips to **B**. It needs no schema change (`index.model` already exists).
 
 **ANS:** (by yuliazhu)
-[Fill this in]   <!-- literal placeholder — parser-significant, do not paraphrase -->
+A — One global model (as built), accepted as recommended. Reopening an older conversation does not change the selected model. (Given in chat, 2026-11-19 — transcribed by Switchboard 5.5.)
 
 ---
 
@@ -173,11 +173,16 @@ How Phase 2 (`site/js/storage.js`, tests in `tests/storage.test.js`) implements 
 ### Also decided (proposed in Iteration 1, not objected to)
 The v1 schema above with a `schema` version and `migrate()`; one key per conversation; UI-only notices stored as `role: "notice"` and filtered out before every API call; never auto-delete user data.
 
+### Added 2026-11-19 (Iteration 4): decisions from the Phase 2 build
+- **Multiple tabs**: last-write-wins when the *same* conversation is continued in two tabs is accepted for v1. It is documented in the README limitations and `docs/TECHNICAL-DEBT.md` (TD-001), and cross-tab sync via the `storage` event is deferred to Phase 4. *Rationale*: losing data needs one chat continued in two tabs between reloads, which is rare for a personal client. The more common case (new chats in different tabs) is already safe because load scans every `orch:conv:*` key, and a test covers it. Sync adds redraw-on-external-change paths that belong with Phase 4's focus and accessibility work. *Reopen if*: two-tab loss is ever observed in practice. (QST-MULTI-TAB = A now, B in Phase 4)
+- **Model per conversation**: one global model. Reopening an older conversation does not change the selected model. *Rationale*: matches ADR-0003's single model picker and the "selected model" preference. What the chip shows is always what the next message uses, and each reply already shows the model that wrote it. *Reopen if*: you find yourself switching models per chat; option B needs no schema change because `index.model` already exists. (QST-CONV-MODEL = A)
+
 ---
 
 ## Open Follow-ups
 
 - [ ] Future task: Export / import conversations as a JSON file — the only backup a localStorage app can offer; Phase 4 candidate.
+- [ ] Future task: cross-tab sync via the `storage` event (QST-MULTI-TAB, option B) — Phase 4; resolves TD-001.
 - [ ] Concern: same-origin pages share the ~5 MB quota as well as read access (ADR-0002); if storage-full is ever observed in practice, revisit the custom-domain option there.
 
 ---
@@ -186,7 +191,7 @@ The v1 schema above with a `schema` version and `migrate()`; one key per convers
 
 - [ ] Answer QST-CONVERSATIONS and QST-CLEAR-SCOPE - Owner: yuliazhu
 - [x] Implement `storage.js` (schema v1, migrate, quota handling) with unit tests in Phase 2 - Owner: Switchboard 5.5 (2026-11-19; local, awaiting yuliazhu's review before push)
-- [ ] Answer QST-MULTI-TAB and QST-CONV-MODEL - Owner: yuliazhu
+- [x] Answer QST-MULTI-TAB and QST-CONV-MODEL - Owner: yuliazhu (2026-11-19)
 - [ ] Run the Phase 2 manual checklist (ADR-0005) and approve the push - Owner: yuliazhu
 
 ---
@@ -218,6 +223,11 @@ The v1 schema above with a `schema` version and `migrate()`; one key per convers
 - Human: yuliazhu
 - AI: Switchboard 5.5 (Claude Opus 5.5)
 - Outcome: Trigger: Phase 2 implementation. Changes: NOT: phase-2-implementation-notes records the choices made within the decision. Two new questions surfaced by the build (QST-MULTI-TAB, QST-CONV-MODEL), both already built as their recommended options, so no answer blocks the Phase 2 review. Status stays Accepted. It moves to Implemented once yuliazhu approves and Phase 2 is deployed.
+
+### Iteration 4 (2026-11-19)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: yuliazhu accepted both new recommendations in chat. Changes: QST-MULTI-TAB = A now, B in Phase 4; QST-CONV-MODEL = A. Both are recorded in the Decision section with rationale and reopening conditions, and cross-tab sync was added to Open Follow-ups. No code change: both were already built as recommended. Status stays Accepted until the Phase 2 deploy is approved.
 
 ---
 
