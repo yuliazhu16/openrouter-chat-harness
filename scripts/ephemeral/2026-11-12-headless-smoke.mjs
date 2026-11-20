@@ -179,8 +179,12 @@ try {
   await load();
   check('after reload: Settings not reopened (key + model kept in sessionStorage)', !(await evaluate(`document.getElementById('settings').open`)));
   check('after reload: model chip restored', (await evaluate(`document.getElementById('model-chip').textContent`)) === 'openrouter/free');
-  check('after reload: chat empty (Phase 1 keeps chats in memory; Phase 2 adds saving)', (await evaluate(`document.querySelectorAll('#messages li').length`)) === 0);
-  check('nothing written to localStorage in Phase 1', (await evaluate(`localStorage.length`)) === 0);
+  // 2026-11-20 (Switchboard 5.5): these two checks asserted Phase 1 behaviour that ADR-0004
+  // deliberately replaced (chats were in memory; nothing in localStorage). Updated to the Phase 2
+  // truth instead of deleted, so this script stays a valid regression run against the live app.
+  // Originals: "after reload: chat empty" (=== 0) and "nothing written to localStorage" (length === 0).
+  check('after reload: chat restored from localStorage (Phase 2, ADR-0004)', (await evaluate(`[...document.querySelectorAll('#messages .msg--user .msg__body')].map(b => b.textContent).includes('ping')`)));
+  check('localStorage holds chats/prefs but never the key (ADR-0002)', (await evaluate(`localStorage.length > 0 && !JSON.stringify(Object.entries(localStorage)).includes('sk-or-')`)));
 
   // 6. console
   const realProblems = problems.filter((p) => !/401|Failed to load resource/.test(p)); // the 401 itself is expected
