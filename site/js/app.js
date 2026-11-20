@@ -45,6 +45,8 @@ const el = {
   banner: $('storage-banner'),
   sidebar: $('sidebar'),
   sidebarToggle: $('sidebar-toggle'),
+  closeSidebar: $('close-sidebar'),
+  chatTitle: $('chat-title'),
   backdrop: $('backdrop'),
   newChat: $('new-chat'),
   topbarNewChat: $('topbar-new-chat'),
@@ -127,7 +129,13 @@ function tailActions(messages) {
 
 function refreshChrome() {
   const model = currentModel();
-  el.modelChip.textContent = model || 'Choose model';
+  // "anthropic/" + "claude-haiku-5.5": phones hide the provider part (styles.css) so the name fits.
+  const slash = model.indexOf('/');
+  const vendor = document.createElement('span');
+  vendor.className = 'model-chip__vendor';
+  vendor.textContent = slash > 0 ? model.slice(0, slash + 1) : '';
+  el.modelChip.replaceChildren(vendor, model ? model.slice(slash + 1) : 'Choose model');
+  el.modelChip.title = model ? `Model: ${model} (change)` : 'Choose a model';
   el.modelChip.classList.toggle('model-chip--unset', !model);
 
   const ready = isConfigured();
@@ -139,6 +147,11 @@ function refreshChrome() {
 
   el.emptyState.hidden = activeMessages().length > 0;
   el.emptyConfigNote.hidden = ready;
+
+  // The header names the open chat (user text → textContent, ADR-0002).
+  const title = (activeId && chats.get(activeId)?.title) || 'New chat';
+  el.chatTitle.textContent = title;
+  el.chatTitle.title = title;
 
   renderBanner();
 }
@@ -312,6 +325,10 @@ el.sidebarToggle.addEventListener('click', () => {
   if (opening) el.newChat.focus();
 });
 el.backdrop.addEventListener('click', () => setDrawer(false));
+el.closeSidebar.addEventListener('click', () => {
+  setDrawer(false);
+  el.sidebarToggle.focus();
+});
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && document.body.classList.contains('drawer-open') && !el.dialog.open) {
     setDrawer(false);
@@ -319,6 +336,25 @@ document.addEventListener('keydown', (event) => {
   }
 });
 wideScreen.addEventListener('change', () => setDrawer(false));
+
+// iOS Safari doesn't shrink the layout when the on-screen keyboard opens; it overlays it, so a
+// 100dvh layout would hide the composer behind the keyboard. Size the shell to the *visible*
+// viewport instead (styles.css: --app-height). Skipped while pinch-zoomed, when the visual
+// viewport is small for a different reason. Android Chrome resizes the layout itself
+// (interactive-widget=resizes-content), where this is a harmless no-op.
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  const fitToVisibleViewport = () => {
+    if (vv.scale > 1.01) return;
+    // If the reader was at the latest message, keep it in view as the panel shrinks/grows.
+    const atBottom = el.chat.scrollHeight - el.chat.scrollTop - el.chat.clientHeight < 24;
+    document.documentElement.style.setProperty('--app-height', `${Math.round(vv.height)}px`);
+    if (atBottom) el.chat.scrollTop = el.chat.scrollHeight;
+    if (vv.offsetTop > 0) window.scrollTo(0, 0); // iOS scrolls the page to show the input; undo it
+  };
+  vv.addEventListener('resize', fitToVisibleViewport);
+  fitToVisibleViewport();
+}
 
 // ---------------------------------------------------------------------------
 // settings dialog

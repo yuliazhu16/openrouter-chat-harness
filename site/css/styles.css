@@ -4,6 +4,7 @@
   --bg: #f7f6f3;
   --surface: #ffffff;
   --surface-2: #efede8;
+  --sidebar-bg: #f0eee9;
   --border: #dedad2;
   --text: #1d1b18;
   --muted: #6b665d;
@@ -17,6 +18,13 @@
   --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.06);
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* layout */
+  --sidebar-w: 264px;  /* desktop sidebar */
+  --topbar-h: 56px;    /* main header AND sidebar header, so their bottom borders line up */
+  --column: 768px;     /* reading width of messages + composer */
+  --gutter: 1rem;
+
   color-scheme: light dark;
 }
 
@@ -25,6 +33,7 @@
     --bg: #161513;
     --surface: #1f1d1a;
     --surface-2: #2a2824;
+    --sidebar-bg: #1b1a17;
     --border: #3a3732;
     --text: #ece9e3;
     --muted: #a39d92;
@@ -40,10 +49,14 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Author `display` rules would otherwise beat the UA's [hidden] rule. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
   margin: 0;
+  overflow: hidden; /* the panels scroll, never the page */
   background: var(--bg);
   color: var(--text);
   font: 16px/1.5 var(--font);
@@ -63,56 +76,72 @@ code { font-family: var(--mono); font-size: 0.9em; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-/* ---------- layout ---------- */
+/* =====================================================================
+   Layout
 
-/* Phones: one column, the conversation list is an off-canvas drawer.
-   ≥ 768px: the list is a permanent sidebar (see "sidebar" below). */
+   .shell   phones: one column (the sidebar is a fixed, off-canvas drawer)
+            ≥ 768px: [ sidebar 264px | main panel ]
+   .app     the main panel: rows [ topbar | banner | chat (scrolls) | composer ]
+
+   Every grid track is minmax(0, …): a plain auto/1fr track can't shrink below
+   its content's min-content width, which pushed the phone layout to 441px
+   (Phase 2 regression, caught by screenshot). Rows are pinned explicitly
+   because a [hidden] banner leaves the grid and would shift the others up.
+   Height: --app-height is set from visualViewport by app.js (iOS keyboard);
+   100dvh is the fallback and already tracks the Android keyboard
+   (interactive-widget=resizes-content in index.html).
+   ===================================================================== */
+
 .shell {
   display: grid;
-  /* minmax(0, …): a plain 1fr/auto column can't shrink below its content's min-content
-     width, so the topbar would push the page past 390px and phones would zoom out. */
   grid-template-columns: minmax(0, 1fr);
   height: 100vh;
-  height: 100dvh; /* tracks the mobile browser's dynamic toolbar */
+  height: var(--app-height, 100dvh);
 }
 
 .app {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
+  background: var(--bg);
 }
-/* Explicit rows: a [hidden] banner leaves the grid, and without these the chat would
-   slide into the banner's auto row and the composer would stretch into the 1fr row. */
 .topbar { grid-row: 1; }
 .banner { grid-row: 2; }
 .chat { grid-row: 3; }
 .composer { grid-row: 4; }
 
-/* Keep the reading column at a comfortable width on wide screens. */
-.messages, .empty-state { max-width: 860px; margin-inline: auto; }
+@media (min-width: 768px) {
+  .shell { grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+}
+
+/* ---------- main header ---------- */
 
 .topbar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem max(1rem, env(safe-area-inset-left)) 0.6rem max(1rem, env(safe-area-inset-right));
+  gap: 0.25rem;
+  height: var(--topbar-h);
+  padding: 0 max(0.5rem, env(safe-area-inset-right)) 0 max(0.5rem, env(safe-area-inset-left));
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
 
-.brand {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
+.topbar__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: auto;
+  font-weight: 600;
 }
 
 .model-chip {
+  flex: 0 1 auto;
   min-width: 0;
-  max-width: 55vw;
+  max-width: 45%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -124,54 +153,82 @@ code { font-family: var(--mono); font-size: 0.9em; }
   font-size: 0.8rem;
   cursor: pointer;
 }
+.model-chip:hover { background: var(--surface-2); }
 .model-chip--unset { font-family: var(--font); color: var(--accent); border-color: var(--accent); }
 
 .icon-btn {
+  flex: none;
   display: inline-grid;
   place-items: center;
-  width: 2.25rem; height: 2.25rem;
+  width: 2.5rem; height: 2.5rem;
   border: 0;
   border-radius: 10px;
   background: transparent;
+  color: var(--text);
   cursor: pointer;
 }
 .icon-btn:hover { background: var(--surface-2); }
 
-.chat {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 1rem;
+@media (min-width: 768px) {
+  .topbar { padding-inline: 1.25rem 0.75rem; }
+  .topbar__title { margin-left: 0; }
+  .sidebar-toggle, .topbar-new { display: none; }
 }
 
-/* ---------- empty state ---------- */
+/* ---------- storage banner ---------- */
+
+.banner {
+  margin: 0;
+  padding: 0.55rem var(--gutter);
+  font-size: 0.875rem;
+  text-align: center;
+  background: var(--accent-soft);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------- conversation area ---------- */
+
+.chat {
+  /* position: relative makes this scroller the containing block of the absolutely-positioned
+     screen-reader labels inside messages (.visually-hidden). Without it they were positioned
+     against the page, escaped this overflow clip, and grew the document to ~2× the viewport per
+     long chat — a page that iOS could scroll out from under the fixed layout. */
+  position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.5rem var(--gutter) 1rem;
+}
+
+.messages, .empty-state {
+  max-width: var(--column);
+  margin-inline: auto;
+}
 
 .empty-state {
   max-width: 34rem;
-  margin-top: 12vh;
+  margin-top: 14vh;
   text-align: center;
   color: var(--muted);
 }
-.empty-state h2 { margin: 0 0 0.5rem; color: var(--text); font-size: 1.35rem; }
+.empty-state h2 { margin: 0 0 0.5rem; color: var(--text); font-size: 1.5rem; font-weight: 650; }
 .empty-note { color: var(--text); }
 .link-btn {
   padding: 0; border: 0; background: none;
   color: var(--accent); text-decoration: underline; cursor: pointer;
 }
 
-/* ---------- messages ---------- */
-
 .messages {
   list-style: none;
-  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .msg {
   max-width: 85%;
-  padding: 0.65rem 0.9rem;
+  padding: 0.7rem 1rem;
   border-radius: var(--radius);
   overflow-wrap: anywhere;
 }
@@ -234,27 +291,37 @@ code { font-family: var(--mono); font-size: 0.9em; }
 /* ---------- composer ---------- */
 
 .composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-  /* side padding grows on wide screens so the composer lines up with the 860px reading column */
-  padding: 0.75rem max(1rem, env(safe-area-inset-right), calc((100% - 860px) / 2)) max(0.75rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left), calc((100% - 860px) / 2));
-  border-top: 1px solid var(--border);
+  padding: 0.5rem max(var(--gutter), env(safe-area-inset-right)) max(0.85rem, env(safe-area-inset-bottom)) max(var(--gutter), env(safe-area-inset-left));
   background: var(--bg);
 }
 
+/* One rounded field holding the textarea and the button, centred on the reading column. */
+.composer__box {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  max-width: var(--column);
+  margin-inline: auto;
+  padding: 0.4rem 0.4rem 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+/* The ring moves from the textarea to the whole field — same visibility, better shape. */
+.composer__box:focus-within { border-color: var(--focus); outline: 2px solid color-mix(in srgb, var(--focus) 35%, transparent); }
 .composer textarea {
   flex: 1;
   min-width: 0;
   max-height: 12rem;
   resize: none;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  line-height: 1.4;
+  padding: 0.45rem 0;
+  border: 0;
+  background: transparent;
+  line-height: 1.45;
 }
-.composer textarea:disabled { opacity: 0.6; }
+.composer textarea:focus-visible { outline: none; }
+.composer .btn { border-radius: 12px; }
 
 /* ---------- buttons ---------- */
 
@@ -271,8 +338,164 @@ code { font-family: var(--mono); font-size: 0.9em; }
 .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .btn--primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.07); }
 .btn--stop { border-color: var(--danger); color: var(--danger); }
-.btn--ghost-danger { border-color: transparent; background: transparent; color: var(--danger); padding-inline: 0.4rem; }
-.btn--small { padding: 0.25rem 0.7rem; font-size: 0.85rem; }
+.btn--ghost-danger { border-color: transparent; background: transparent; color: var(--danger); padding-inline: 0.5rem; }
+.btn--ghost-danger:hover:not(:disabled) { background: var(--danger-bg); }
+.btn--small { padding: 0.3rem 0.7rem; font-size: 0.85rem; }
+
+/* ---------- sidebar (desktop) / drawer (phones) ---------- */
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  width: min(var(--sidebar-w), 85vw);
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.75rem max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transform: translateX(-100%);
+  visibility: hidden; /* keeps the closed drawer out of the tab order and the a11y tree */
+  transition: transform 0.2s ease, visibility 0s linear 0.2s;
+}
+.drawer-open .sidebar {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) { .sidebar, .drawer-open .sidebar { transition: none; } }
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.sidebar__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: var(--topbar-h);
+  flex: none;
+  margin-inline: -0.75rem;
+  padding-inline: 1rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-right: auto;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.new-chat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0.85rem 0 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+.new-chat:hover { border-color: var(--accent); }
+
+.sidebar__label {
+  margin: 1rem 0.5rem 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.conv-empty { margin: 0.25rem 0.5rem; color: var(--muted); font-size: 0.9rem; }
+
+.conv-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0 -0.25rem;
+  padding: 0 0.25rem;
+}
+
+.conv {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+  border-radius: 10px;
+}
+.conv:hover { background: var(--surface-2); }
+.conv--active, .conv--active:hover { background: var(--accent-soft); }
+
+.conv__open {
+  flex: 1;
+  min-width: 0;
+  padding: 0.5rem 0.5rem 0.5rem 0.6rem;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  font-size: 0.925rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.conv--active .conv__open { font-weight: 600; }
+.conv__busy { color: var(--muted); padding-inline: 0.25rem; }
+.conv__delete {
+  flex: none;
+  width: 2rem; height: 2rem;
+  margin-right: 0.15rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.conv__delete:hover { color: var(--danger); background: var(--danger-bg); }
+/* With a mouse, the delete button appears on hover/focus (it stays reachable by keyboard);
+   on touch screens it is always visible. */
+@media (hover: hover) and (pointer: fine) {
+  .conv__delete { opacity: 0; }
+  .conv:hover .conv__delete, .conv:focus-within .conv__delete, .conv--active .conv__delete { opacity: 1; }
+}
+
+.sidebar__foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+.sidebar__note { margin: 0 0.5rem; font-size: 0.75rem; color: var(--muted); }
+
+@media (min-width: 768px) {
+  .sidebar {
+    position: static;
+    width: auto;
+    min-height: 0;
+    transform: none;
+    visibility: visible;
+    box-shadow: none;
+    transition: none;
+  }
+  .sidebar__close, .backdrop { display: none; }
+}
 
 /* ---------- settings dialog ---------- */
 
@@ -322,125 +545,16 @@ code { font-family: var(--mono); font-size: 0.9em; }
 .dialog-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 1.25rem; }
 .spacer { flex: 1; }
 
-/* ---------- storage banner ---------- */
-
-.banner {
-  margin: 0;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  background: var(--accent-soft);
-  color: var(--text);
-  border-bottom: 1px solid var(--border);
-}
-
-/* ---------- conversation sidebar / drawer ---------- */
-
-.sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  z-index: 20;
-  width: min(18rem, 85vw);
-  display: flex;
-  flex-direction: column;
-  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  transform: translateX(-100%);
-  visibility: hidden; /* keeps the closed drawer out of the tab order */
-  transition: transform 0.2s ease, visibility 0s linear 0.2s;
-}
-.drawer-open .sidebar {
-  transform: none;
-  visibility: visible;
-  transition: transform 0.2s ease;
-}
-@media (prefers-reduced-motion: reduce) { .sidebar, .drawer-open .sidebar { transition: none; } }
-
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  background: rgb(0 0 0 / 0.4);
-}
-
-.sidebar__head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
-.sidebar__title { margin: 0 auto 0 0.25rem; font-size: 1rem; }
-
-.conv-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.conv {
-  display: flex;
-  align-items: center;
-  border-radius: 10px;
-}
-.conv:hover { background: var(--surface-2); }
-.conv--active { background: var(--accent-soft); }
-.conv--active:hover { background: var(--accent-soft); }
-
-.conv__open {
-  flex: 1;
-  min-width: 0;
-  padding: 0.55rem 0.6rem;
-  border: 0;
-  background: none;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-.conv__busy { color: var(--muted); padding-inline: 0.25rem; }
-.conv__delete {
-  flex: none;
-  width: 2rem; height: 2rem;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--muted);
-  font-size: 1.15rem;
-  line-height: 1;
-  cursor: pointer;
-}
-.conv__delete:hover { color: var(--danger); background: var(--danger-bg); }
-
-.conv-empty { margin: 0.25rem 0.6rem; color: var(--muted); font-size: 0.9rem; }
-
-.sidebar__foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding-top: 0.6rem;
-  border-top: 1px solid var(--border);
-}
-.sidebar__note { margin: 0; font-size: 0.75rem; color: var(--muted); }
-
-@media (min-width: 768px) {
-  .shell { grid-template-columns: 16rem minmax(0, 1fr); }
-  .sidebar {
-    position: static;
-    width: auto;
-    transform: none;
-    visibility: visible;
-    box-shadow: none;
-    transition: none;
-  }
-  .sidebar-toggle, .topbar-new, .backdrop { display: none; }
-}
-
 /* ---------- small screens ---------- */
 
 @media (max-width: 480px) {
-  .brand { font-size: 0.95rem; }
+  :root { --gutter: 0.75rem; }
+  .model-chip__vendor { display: none; } /* "claude-haiku-5.5", not "anthropic/claude-…" */
+  /* Measured at 390px: 238px remain for title + chip; this keeps "claude-haiku-5.5" whole
+     (≈135px) and leaves the title ≥ 90px. Longer names truncate, full ID in the tooltip. */
+  .model-chip { max-width: 42%; padding-inline: 0.55rem; font-size: 0.75rem; }
   .msg { max-width: 92%; }
-  .chat { padding: 0.75rem; }
+  .chat { padding-top: 1rem; }
   .settings { padding: 1rem; }
+  .empty-state { margin-top: 8vh; }
 }
