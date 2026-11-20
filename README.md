@@ -63,7 +63,8 @@ No build step and no dependencies. Node ≥ 22 for the tests; [`just`](https://g
 ```bash
 just serve        # http://localhost:8000 (ES modules need http://, not file://); caching off, so a
                   # normal reload always picks up edits. On a phone (same Wi-Fi): http://<your-LAN-IP>:8000
-just gate         # placeholder check + secret scan + unit tests; must be green before every commit
+just stamp-assets # after editing site/css or site/js: re-stamp CSS/JS URLs with ?v=<content hash>
+just gate         # placeholder check + secret scan + unit tests (incl. stamps); green before every commit
 npm test          # or: node --test "tests/**/*.test.js"
 ```
 

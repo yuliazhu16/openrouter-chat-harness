@@ -9,7 +9,7 @@ adr teaching map: the example is not the teaching — these are the up-links fro
 # ADR-0001: Static site architecture, repo layout, and GitHub Pages deployment
 
 - **Date**: 2026-11-12
-- **Iteration**: 3
+- **Iteration**: 4
 - **Status**: Accepted
 - **Deciders**: yuliazhu (human), Switchboard 5.5 (Claude Opus 5.5)
 
@@ -94,7 +94,7 @@ A — Official Pages artifact flow. Accepted as recommended. (Blanket acceptance
 ---
 
 ### QST-PAGES-CACHE: After a deploy, how do we stop browsers mixing new HTML with cached old CSS/JS?
-- Status: unanswered
+- Status: unanswered — option A implemented provisionally 2026-11-20 (Iteration 4) to unblock yuliazhu's second layout report; awaiting confirm or override
 - Why asking: Found 2026-11-20 while diagnosing yuliazhu's broken local layout. Root cause: Phase 2 `index.html` was loaded with Phase 1 `styles.css` and `app.js` from the browser cache; reproduced in `scripts/ephemeral/2026-11-20-layout-diagnosis.mjs`. Locally this is fixed (`just serve` now sends `Cache-Control: no-cache`). **GitHub Pages sends `cache-control: max-age=600` on every file** (verified on the live site, 2026-11-20). Chrome re-checks the HTML on reload but serves still-fresh CSS/JS from cache. So for up to 10 minutes after the Phase 2 deploy, anyone who loaded the Phase 1 site recently, including you checking the deploy, gets the broken page. The new HTML structure doesn't work with the old CSS, so this deploy is the first where it matters. Pages headers can't be configured (no `_headers` file), and the no-build decision (QST-STACK-BUILD = A) rules out bundler hashing. **Needs an answer before the Phase 2 push.**
 - Need: pick a letter (or override — any shape answers)
 
@@ -223,6 +223,11 @@ A static, dependency-free chat client must be published from a public repo that 
 - Human: yuliazhu
 - AI: Switchboard 5.5 (Claude Opus 5.5)
 - Outcome: Trigger: yuliazhu's report of a broken local layout after Phase 2. Changes: root cause traced to browser caching of CSS/JS. The local dev server is fixed (follow-up annotated). New QST-PAGES-CACHE for the same risk on Pages (`max-age=600`), to be answered before the Phase 2 push. Accepted decisions unchanged.
+
+### Iteration 4 (2026-11-20)
+- Human: yuliazhu
+- AI: Switchboard 5.5 (Claude Opus 5.5)
+- Outcome: Trigger: yuliazhu's second layout report ("must scroll the page to reach the input; input much too narrow"). Evidence: port 8000 was still the pre-fix `python3 -m http.server` (started 17:53, never restarted), so the Phase 1 CSS/JS Chrome fetched then stayed heuristically fresh until about 10:26 the next day. Rendering current HTML with Phase 1 CSS/JS reproduced every symptom with computed dimensions: sidebar 1440×252 with 0 padding, page 1168px tall in a 900px window, composer at y=1084, textarea 212px (`scripts/ephemeral/2026-11-20-stale-mix-render.mjs`). Telling the human to restart the server and hard-reload had already failed once, so QST-PAGES-CACHE **option A was implemented provisionally**: `scripts/asset-stamp.mjs`, `just stamp-assets`, and `tests/asset-stamps.test.js` in the gate. Replaying the human's exact path (plain server, cached Phase 1, ordinary reload) now renders identically to a fresh profile. The ANS slot is left for yuliazhu: confirm A, or override with B/C (reverting is removing the stamps, the script, and the test). Known residual: within Pages' 10-minute window, a cached *old* HTML page whose CSS cache entry was evicted could fetch new CSS under its old stamped URL (Pages ignores query strings). That needs the two cache entries to expire separately, which is rare because they are fetched together.
 
 ---
 
