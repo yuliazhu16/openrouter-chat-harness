@@ -17,14 +17,38 @@
   <script type="module" src="./js/app.js"></script>
 </head>
 <body>
+  <div class="shell">
+  <!-- Conversation list (ADR-0004, QST-CONVERSATIONS = B): a sidebar on wide screens, a drawer on phones. -->
+  <aside class="sidebar" id="sidebar" aria-label="Conversations">
+    <div class="sidebar__head">
+      <h2 class="sidebar__title">Chats</h2>
+      <button type="button" class="btn btn--small btn--primary" id="new-chat">New chat</button>
+    </div>
+    <ol class="conv-list" id="conv-list"></ol>
+    <p class="conv-empty" id="conv-empty">No saved chats yet.</p>
+    <div class="sidebar__foot">
+      <button type="button" class="btn btn--ghost-danger btn--small" id="clear-history">Clear history</button>
+      <p class="sidebar__note">Saved in this browser only.</p>
+    </div>
+  </aside>
+  <div class="backdrop" id="backdrop" hidden></div>
+
   <div class="app">
     <header class="topbar">
+      <button type="button" class="icon-btn sidebar-toggle" id="sidebar-toggle" aria-label="Show chats" title="Chats" aria-controls="sidebar" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
       <h1 class="brand">OpenRouter Chat</h1>
+      <button type="button" class="icon-btn topbar-new" id="topbar-new-chat" aria-label="New chat" title="New chat">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
       <button type="button" class="model-chip" id="model-chip" title="Change model">Choose model</button>
       <button type="button" class="icon-btn" id="open-settings" aria-label="Settings" title="Settings">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>
       </button>
     </header>
+
+    <p class="banner" id="storage-banner" role="status" hidden></p>
 
     <main class="chat" id="chat">
       <section class="empty-state" id="empty-state" aria-labelledby="empty-title">
@@ -41,6 +65,7 @@
       <button type="submit" class="btn btn--primary" id="send">Send</button>
       <button type="button" class="btn btn--stop" id="stop" hidden>Stop</button>
     </form>
+  </div>
   </div>
 
   <dialog class="settings" id="settings" aria-labelledby="settings-title">
@@ -66,6 +91,7 @@
         <ul>
           <li>Your key is sent from this browser directly to OpenRouter. This site has no server and never sees it, but any script running on this page could.</li>
           <li>The key is kept only for this tab (sessionStorage). Pages on the same <code>github.io</code> origin can read storage, which is why it is not saved on the device.</li>
+          <li>Conversations and your model choice are saved unencrypted in this browser's localStorage, which other pages on the same <code>github.io</code> origin can also read. <strong>Clear history</strong> deletes all conversations; it keeps your key and preferences.</li>
           <li>Replies are shown as plain text and are never interpreted as HTML.</li>
           <li>If you think a key was exposed, revoke it at openrouter.ai/keys.</li>
         </ul>

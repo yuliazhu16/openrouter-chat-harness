@@ -1,19 +1,32 @@
 // Entry point: wires the page to the pure modules (ADR-0001 layout).
 //
-// Phase 1 scope (ADR-0005): settings, non-streaming send/receive, loading + Stop,
-// mapped errors with Retry, multi-turn history IN MEMORY. Saving conversations
-// (and New Chat / Clear History) arrives in Phase 2 (ADR-0004).
+// Phase 1 (ADR-0005): settings, non-streaming send/receive, loading + Stop, mapped errors.
+// Phase 2 (ADR-0004): conversations and preferences saved in localStorage (storage.js);
+// sidebar/drawer with New chat, switching, delete-one, and Clear history.
+//
+// State lives in two places: `chats` (the store — conversations, prefs, active id; it
+// persists what it can) and the few UI-only variables below. render() redraws the page
+// from that state, so every action is "change state, then render()".
 
 import { ChatError, sendChat, toApiMessages } from './api.js';
 import { createKeystore } from './keystore.js';
 import { SUGGESTED_MODELS } from './models.js';
-import { renderMessage, renderPending } from './render.js';
+import { renderConversationItem, renderMessage, renderPending } from './render.js';
+import { createChatStore } from './storage.js';
 
-const store = createKeystore();
+const keystore = createKeystore();
+const chats = createChatStore();
 
-/** The conversation: user/assistant turns plus UI-only "notice" entries (never sent; see api.js). */
-const history = [];
-/** AbortController of the request in flight, or null. One request at a time (ADR-0003). */
+// Phase 1 kept the model in sessionStorage; it is a saved preference now. Hand it over once.
+keystore.handOverLegacyModel((model) => chats.adoptModel(model));
+
+/** The open conversation's id, or null for a fresh chat that isn't saved until its first message. */
+let activeId = chats.activeId;
+/**
+ * The request in flight, or null. One request at a time (ADR-0003). It belongs to the
+ * conversation it was sent from: the reply lands there even if the user switches away.
+ * @type {{controller: AbortController, convId: string, pending: HTMLElement} | null}
+ */
 let inFlight = null;
 
 const $ = (id) => document.getElementById(id);
@@ -29,6 +42,15 @@ const el = {
   stop: $('stop'),
   modelChip: $('model-chip'),
   openSettings: $('open-settings'),
+  banner: $('storage-banner'),
+  sidebar: $('sidebar'),
+  sidebarToggle: $('sidebar-toggle'),
+  backdrop: $('backdrop'),
+  newChat: $('new-chat'),
+  topbarNewChat: $('topbar-new-chat'),
+  convList: $('conv-list'),
+  convEmpty: $('conv-empty'),
+  clearHistory: $('clear-history'),
   dialog: $('settings'),
   form: $('settings-form'),
   keyInput: $('api-key'),
@@ -41,14 +63,70 @@ const el = {
 };
 
 const finePointer = window.matchMedia('(pointer: fine)');
+const wideScreen = window.matchMedia('(min-width: 768px)'); // keep in sync with styles.css
 
 // ---------------------------------------------------------------------------
 // state → UI
 
-const isConfigured = () => Boolean(store.getKey() && store.getModel());
+const currentModel = () => chats.prefs.model;
+const isConfigured = () => Boolean(keystore.getKey() && currentModel());
+const activeMessages = () => (activeId ? chats.get(activeId)?.messages ?? [] : []);
+
+/** True when the last real turn is the user's, i.e. there is something to (re)send. */
+function awaitingReply(messages) {
+  const turns = toApiMessages(messages);
+  return turns.length > 0 && turns[turns.length - 1].role === 'user';
+}
+
+function render({ scroll = true } = {}) {
+  renderSidebar();
+  renderMessages();
+  refreshChrome();
+  if (scroll) el.chat.scrollTop = el.chat.scrollHeight;
+}
+
+function renderSidebar() {
+  const entries = chats.list();
+  el.convList.replaceChildren(
+    ...entries.map((entry) =>
+      renderConversationItem(entry, {
+        active: entry.id === activeId,
+        busy: entry.id === inFlight?.convId,
+        onOpen: () => openConversation(entry.id),
+        onDelete: () => deleteConversation(entry.id),
+      }),
+    ),
+  );
+  el.convEmpty.hidden = entries.length > 0;
+  el.clearHistory.disabled = entries.length === 0 && chats.unreadable.length === 0;
+}
+
+function renderMessages() {
+  const messages = activeMessages();
+  const nodes = messages.map((m) => renderMessage(m));
+
+  // Saved notices are plain records; the buttons for the conversation's current state are
+  // added here, so they look the same live, after switching back, and after a reload.
+  const actions = tailActions(messages);
+  if (actions.length > 0) {
+    const last = messages.at(-1);
+    if (last.role === 'notice') nodes[nodes.length - 1] = renderMessage(last, { actions });
+    else nodes.push(renderMessage({ role: 'notice', kind: 'info', text: 'No reply yet.' }, { actions })); // e.g. reloaded mid-request
+  }
+  if (inFlight && inFlight.convId === activeId) nodes.push(inFlight.pending);
+
+  el.messages.replaceChildren(...nodes);
+}
+
+function tailActions(messages) {
+  if (inFlight || !awaitingReply(messages)) return [];
+  const actions = [{ label: 'Retry', onClick: () => requestReply(activeId) }];
+  if (messages.at(-1)?.kind === 'error') actions.unshift({ label: 'Open Settings', onClick: () => openSettings() });
+  return actions;
+}
 
 function refreshChrome() {
-  const model = store.getModel();
+  const model = currentModel();
   el.modelChip.textContent = model || 'Choose model';
   el.modelChip.classList.toggle('model-chip--unset', !model);
 
@@ -59,77 +137,131 @@ function refreshChrome() {
   el.send.hidden = busy;
   el.stop.hidden = !busy;
 
-  el.emptyState.hidden = history.length > 0;
+  el.emptyState.hidden = activeMessages().length > 0;
   el.emptyConfigNote.hidden = ready;
+
+  renderBanner();
 }
 
-function scrollToBottom() {
-  el.chat.scrollTop = el.chat.scrollHeight;
+/** ADR-0004, NOT: failure-handling — say plainly when chats aren't being saved, and why. */
+function renderBanner() {
+  const lines = [];
+  if (chats.problem === 'unavailable') {
+    lines.push("This browser isn't letting the app save data (private mode or blocked site data), so chats will be lost when you reload.");
+  } else if (chats.problem === 'quota') {
+    lines.push("Storage is full, so recent messages weren't saved. Delete old conversations to keep saving.");
+  } else if (chats.problem === 'newer-schema') {
+    lines.push('Your saved chats were made by a newer version of this app. Reload to get it; changes made in this tab won\'t be saved.');
+  }
+  if (chats.problem !== 'unavailable' && !keystore.persistsAcrossReload) {
+    lines.push('Your API key will be forgotten when you reload.');
+  }
+  const unreadable = chats.unreadable.length;
+  if (unreadable > 0) {
+    lines.push(
+      `${unreadable === 1 ? '1 saved conversation' : `${unreadable} saved conversations`} couldn't be read and ${unreadable === 1 ? 'was' : 'were'} skipped (left in storage, not deleted).`,
+    );
+  }
+  el.banner.textContent = lines.join(' ');
+  el.banner.hidden = lines.length === 0;
 }
 
-function append(msg, options) {
-  history.push(msg);
-  el.messages.append(renderMessage(msg, options));
-  refreshChrome();
-  scrollToBottom();
+// ---------------------------------------------------------------------------
+// conversations
+
+function setDrawer(open) {
+  if (wideScreen.matches) open = false; // the sidebar is always visible on wide screens
+  document.body.classList.toggle('drawer-open', open);
+  el.backdrop.hidden = !open;
+  el.sidebarToggle.setAttribute('aria-expanded', String(open));
+  el.sidebarToggle.setAttribute('aria-label', open ? 'Hide chats' : 'Show chats');
 }
 
-function addNotice(kind, text, actions = []) {
-  append({ role: 'notice', kind, text, ts: Date.now() }, { actions });
+function focusPrompt() {
+  if (finePointer.matches) el.prompt.focus(); // don't pop the on-screen keyboard on phones
+}
+
+function newChat() {
+  activeId = null;
+  chats.setActive(null);
+  setDrawer(false);
+  render();
+  focusPrompt();
+}
+
+function openConversation(id) {
+  activeId = id;
+  chats.setActive(id);
+  setDrawer(false);
+  render();
+  focusPrompt();
+}
+
+function deleteConversation(id) {
+  const entry = chats.get(id);
+  if (!entry) return;
+  if (!window.confirm(`Delete "${entry.title}"? This can't be undone.`)) return;
+  if (inFlight?.convId === id) inFlight.controller.abort(); // its late reply is dropped (chats.append → null)
+  chats.remove(id);
+  if (activeId === id) activeId = null;
+  render();
+}
+
+/** ADR-0004, QST-CLEAR-SCOPE = A: all conversations, after a confirm showing the count; key and prefs stay. */
+function clearHistory() {
+  const readable = chats.list().length;
+  const unreadable = chats.unreadable.length;
+  const total = readable + unreadable;
+  if (total === 0) return;
+  const what = `${readable === 1 ? '1 conversation' : `all ${readable} conversations`}${unreadable ? ` (plus ${unreadable} unreadable)` : ''}`;
+  if (!window.confirm(`Delete ${what}? This can't be undone. Your API key and settings are kept.`)) return;
+  inFlight?.controller.abort();
+  chats.clearAll();
+  activeId = null;
+  setDrawer(false);
+  render();
 }
 
 // ---------------------------------------------------------------------------
 // sending
 
-/** True when the last real turn is the user's, i.e. there is something to (re)send. */
-function awaitingReply() {
-  const turns = toApiMessages(history);
-  return turns.length > 0 && turns[turns.length - 1].role === 'user';
-}
-
-async function requestReply() {
-  if (inFlight || !awaitingReply()) return;
+async function requestReply(convId) {
+  if (inFlight || !convId) return;
+  const conversation = chats.get(convId);
+  if (!conversation || !awaitingReply(conversation.messages)) return;
 
   const controller = new AbortController();
-  inFlight = controller;
-  const pending = renderPending();
-  el.messages.append(pending);
-  refreshChrome();
-  scrollToBottom();
+  inFlight = { controller, convId, pending: renderPending() };
+  render();
 
   try {
     const reply = await sendChat({
-      apiKey: store.getKey(),
-      model: store.getModel(),
-      history,
+      apiKey: keystore.getKey(),
+      model: currentModel(),
+      history: conversation.messages,
       referer: `${location.origin}${location.pathname}`,
       signal: controller.signal,
     });
-    pending.remove();
-    append({ role: 'assistant', content: reply.content, model: reply.model, ts: Date.now() });
-    if (reply.finishReason === 'length') addNotice('info', 'Reply was cut off (length limit).');
+    // chats.append ignores a conversation deleted while the reply was on its way (it stays deleted).
+    chats.append(convId, { role: 'assistant', content: reply.content, model: reply.model, ts: Date.now() });
+    if (reply.finishReason === 'length') {
+      chats.append(convId, { role: 'notice', kind: 'info', text: 'Reply was cut off (length limit).', ts: Date.now() });
+    }
   } catch (err) {
-    pending.remove();
-    showFailure(err);
+    chats.append(convId, failureNotice(err));
   } finally {
     inFlight = null;
-    refreshChrome();
-    if (finePointer.matches) el.prompt.focus(); // don't pop the on-screen keyboard on phones
+    // Don't yank the view to the bottom if the reply landed in a chat the user switched away from.
+    render({ scroll: convId === activeId });
+    if (convId === activeId) focusPrompt();
   }
 }
 
-function showFailure(err) {
+function failureNotice(err) {
   const error =
     err instanceof ChatError ? err : new ChatError('unknown', 'Something went wrong. Please try again.');
-  if (error.kind === 'aborted') {
-    addNotice('stopped', 'Stopped.', [{ label: 'Retry', onClick: requestReply }]);
-    return;
-  }
-  const actions = [{ label: 'Retry', onClick: requestReply }];
-  if (['auth', 'config', 'credits', 'model'].includes(error.kind)) {
-    actions.unshift({ label: 'Open Settings', onClick: () => openSettings() });
-  }
-  addNotice('error', error.message, actions);
+  if (error.kind === 'aborted') return { role: 'notice', kind: 'stopped', text: 'Stopped.', ts: Date.now() };
+  return { role: 'notice', kind: 'error', text: error.message, ts: Date.now() };
 }
 
 el.composer.addEventListener('submit', (event) => {
@@ -140,10 +272,15 @@ el.composer.addEventListener('submit', (event) => {
     openSettings('Add your API key and choose a model to start chatting.');
     return;
   }
-  append({ role: 'user', content: text, ts: Date.now() });
+  const message = { role: 'user', content: text, ts: Date.now() };
+  if (activeId && chats.has(activeId)) {
+    chats.append(activeId, message);
+  } else {
+    activeId = chats.create(message).id; // a fresh chat is saved with its first message
+  }
   el.prompt.value = '';
   autoGrow();
-  requestReply();
+  requestReply(activeId);
 });
 
 el.prompt.addEventListener('keydown', (event) => {
@@ -161,7 +298,27 @@ function autoGrow() {
 }
 el.prompt.addEventListener('input', autoGrow);
 
-el.stop.addEventListener('click', () => inFlight?.abort());
+el.stop.addEventListener('click', () => inFlight?.controller.abort());
+
+// ---------------------------------------------------------------------------
+// sidebar wiring
+
+el.newChat.addEventListener('click', newChat);
+el.topbarNewChat.addEventListener('click', newChat);
+el.clearHistory.addEventListener('click', clearHistory);
+el.sidebarToggle.addEventListener('click', () => {
+  const opening = !document.body.classList.contains('drawer-open');
+  setDrawer(opening);
+  if (opening) el.newChat.focus();
+});
+el.backdrop.addEventListener('click', () => setDrawer(false));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && document.body.classList.contains('drawer-open') && !el.dialog.open) {
+    setDrawer(false);
+    el.sidebarToggle.focus();
+  }
+});
+wideScreen.addEventListener('change', () => setDrawer(false));
 
 // ---------------------------------------------------------------------------
 // settings dialog
@@ -182,10 +339,11 @@ function showSettingsError(text) {
 }
 
 function openSettings(reason) {
-  el.keyInput.value = store.getKey();
-  el.modelInput.value = store.getModel();
+  el.keyInput.value = keystore.getKey();
+  el.modelInput.value = currentModel();
   setKeyVisible(false);
   showSettingsError(reason);
+  setDrawer(false);
   if (!el.dialog.open) el.dialog.showModal();
   (el.keyInput.value ? el.modelInput : el.keyInput).focus();
 }
@@ -207,20 +365,17 @@ el.form.addEventListener('submit', (event) => {
   if (!model) return showSettingsError('Choose or type a model ID.');
   if (/\s/.test(model)) return showSettingsError('Model IDs have no spaces, e.g. openrouter/free.');
 
-  store.setKey(key);
-  store.setModel(model);
+  keystore.setKey(key); // sessionStorage only (ADR-0002)
+  chats.setPrefs({ model }); // localStorage preference (ADR-0004)
   el.dialog.close();
-  refreshChrome();
-  if (!store.persistsAcrossReload) {
-    addNotice('info', "This browser blocks storage here, so your key will be forgotten when you reload.");
-  }
+  render({ scroll: false });
   el.prompt.focus();
 });
 
 el.toggleKey.addEventListener('click', () => setKeyVisible(el.keyInput.type === 'password'));
 el.cancelSettings.addEventListener('click', () => el.dialog.close());
 el.forgetKey.addEventListener('click', () => {
-  store.forgetKey();
+  keystore.forgetKey();
   el.keyInput.value = '';
   showSettingsError('');
   refreshChrome();
@@ -243,6 +398,7 @@ el.emptyOpenSettings.addEventListener('click', () => openSettings());
 // boot
 
 populateModelSuggestions();
-refreshChrome();
+render();
 // First run (ADR-0003, QST-DEFAULT-MODEL = C): no default model — ask for key and model together.
+// A returning user with a saved model but a closed tab (sessionStorage key gone) lands here too.
 if (!isConfigured()) openSettings();

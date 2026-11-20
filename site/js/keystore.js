@@ -1,16 +1,18 @@
-// Session-scoped settings: the API key and the chosen model (ADR-0002, QST-KEY-STORAGE = B).
+// The API key, session-scoped (ADR-0002, QST-KEY-STORAGE = B).
 //
 // PURE MODULE (no DOM): tests/keystore.test.js passes its own Storage-shaped object.
 //
-// Phase 1 keeps BOTH values in sessionStorage: they survive a page refresh but
-// are forgotten when the tab closes. Phase 2 moves the model into persistent
-// preferences (ADR-0004); Phase 3 adds the opt-in "Remember key on this device".
+// The key lives in sessionStorage: it survives a page refresh but is forgotten when
+// the tab closes. Phase 3 adds the opt-in "Remember key on this device".
+// Phase 1 also kept the chosen model here; since Phase 2 the model is a persistent
+// preference in localStorage (ADR-0004, storage.js), and handOverLegacyModel() moves
+// a Phase 1 tab's model across once.
 //
 // If storage is unavailable (some private-browsing modes, blocked site data),
 // values fall back to memory: the app keeps working, it just forgets on reload.
 
 const KEY_ITEM = 'orch:apiKey';
-const MODEL_ITEM = 'orch:session:model';
+const LEGACY_MODEL_ITEM = 'orch:session:model'; // Phase 1 only
 
 export function createKeystore(storage = defaultSessionStorage()) {
   const memory = new Map();
@@ -57,8 +59,16 @@ export function createKeystore(storage = defaultSessionStorage()) {
     getKey: () => read(KEY_ITEM) ?? '',
     setKey: (key) => write(KEY_ITEM, String(key ?? '').trim()),
     forgetKey: () => remove(KEY_ITEM),
-    getModel: () => read(MODEL_ITEM) ?? '',
-    setModel: (model) => write(MODEL_ITEM, String(model ?? '').trim()),
+    /**
+     * One-time Phase 1 → Phase 2 move of the model out of sessionStorage. `save(model)`
+     * stores it as a preference and returns true once it is safely persisted; only then
+     * is the session copy removed, so a failed save never loses the user's choice.
+     */
+    handOverLegacyModel(save) {
+      const model = (read(LEGACY_MODEL_ITEM) ?? '').trim();
+      if (!model) return;
+      if (save(model)) remove(LEGACY_MODEL_ITEM);
+    },
   };
 }
 

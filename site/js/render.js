@@ -49,6 +49,46 @@ export function renderMessage(msg, { actions = [] } = {}) {
   return li;
 }
 
+/**
+ * One sidebar row: open button + delete button. The title is the user's own first
+ * message, so it gets the same textContent-only treatment as everything else.
+ * @param {{id: string, title: string}} entry
+ * @param {{active: boolean, busy: boolean, onOpen: () => void, onDelete: () => void}} options
+ */
+export function renderConversationItem({ title }, { active, busy, onOpen, onDelete }) {
+  const li = document.createElement('li');
+  li.className = 'conv';
+  if (active) li.classList.add('conv--active');
+
+  const open = document.createElement('button');
+  open.type = 'button';
+  open.className = 'conv__open';
+  open.textContent = title;
+  open.title = title;
+  if (active) open.setAttribute('aria-current', 'true');
+  open.addEventListener('click', onOpen);
+  li.append(open);
+
+  if (busy) {
+    const status = document.createElement('span');
+    status.className = 'conv__busy';
+    status.textContent = '…';
+    status.title = 'Waiting for a reply';
+    li.append(status);
+  }
+
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'conv__delete';
+  del.setAttribute('aria-label', `Delete conversation: ${title}`);
+  del.title = 'Delete conversation';
+  del.textContent = '×';
+  del.addEventListener('click', onDelete);
+  li.append(del);
+
+  return li;
+}
+
 /** The "waiting for a reply" bubble. */
 export function renderPending() {
   const li = document.createElement('li');

@@ -65,14 +65,33 @@ code { font-family: var(--mono); font-size: 0.9em; }
 
 /* ---------- layout ---------- */
 
-.app {
+/* Phones: one column, the conversation list is an off-canvas drawer.
+   ≥ 768px: the list is a permanent sidebar (see "sidebar" below). */
+.shell {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* minmax(0, …): a plain 1fr/auto column can't shrink below its content's min-content
+     width, so the topbar would push the page past 390px and phones would zoom out. */
+  grid-template-columns: minmax(0, 1fr);
   height: 100vh;
   height: 100dvh; /* tracks the mobile browser's dynamic toolbar */
-  max-width: 860px;
-  margin: 0 auto;
 }
+
+.app {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+}
+/* Explicit rows: a [hidden] banner leaves the grid, and without these the chat would
+   slide into the banner's auto row and the composer would stretch into the 1fr row. */
+.topbar { grid-row: 1; }
+.banner { grid-row: 2; }
+.chat { grid-row: 3; }
+.composer { grid-row: 4; }
+
+/* Keep the reading column at a comfortable width on wide screens. */
+.messages, .empty-state { max-width: 860px; margin-inline: auto; }
 
 .topbar {
   display: flex;
@@ -128,7 +147,7 @@ code { font-family: var(--mono); font-size: 0.9em; }
 
 .empty-state {
   max-width: 34rem;
-  margin: 12vh auto 0;
+  margin-top: 12vh;
   text-align: center;
   color: var(--muted);
 }
@@ -218,7 +237,8 @@ code { font-family: var(--mono); font-size: 0.9em; }
   display: flex;
   align-items: flex-end;
   gap: 0.5rem;
-  padding: 0.75rem max(1rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  /* side padding grows on wide screens so the composer lines up with the 860px reading column */
+  padding: 0.75rem max(1rem, env(safe-area-inset-right), calc((100% - 860px) / 2)) max(0.75rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left), calc((100% - 860px) / 2));
   border-top: 1px solid var(--border);
   background: var(--bg);
 }
@@ -301,6 +321,120 @@ code { font-family: var(--mono); font-size: 0.9em; }
 
 .dialog-actions { display: flex; align-items: center; gap: 0.5rem; margin-top: 1.25rem; }
 .spacer { flex: 1; }
+
+/* ---------- storage banner ---------- */
+
+.banner {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  background: var(--accent-soft);
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---------- conversation sidebar / drawer ---------- */
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 20;
+  width: min(18rem, 85vw);
+  display: flex;
+  flex-direction: column;
+  padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  transform: translateX(-100%);
+  visibility: hidden; /* keeps the closed drawer out of the tab order */
+  transition: transform 0.2s ease, visibility 0s linear 0.2s;
+}
+.drawer-open .sidebar {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) { .sidebar, .drawer-open .sidebar { transition: none; } }
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.sidebar__head { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.sidebar__title { margin: 0 auto 0 0.25rem; font-size: 1rem; }
+
+.conv-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.conv {
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+}
+.conv:hover { background: var(--surface-2); }
+.conv--active { background: var(--accent-soft); }
+.conv--active:hover { background: var(--accent-soft); }
+
+.conv__open {
+  flex: 1;
+  min-width: 0;
+  padding: 0.55rem 0.6rem;
+  border: 0;
+  background: none;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.conv__busy { color: var(--muted); padding-inline: 0.25rem; }
+.conv__delete {
+  flex: none;
+  width: 2rem; height: 2rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.conv__delete:hover { color: var(--danger); background: var(--danger-bg); }
+
+.conv-empty { margin: 0.25rem 0.6rem; color: var(--muted); font-size: 0.9rem; }
+
+.sidebar__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+.sidebar__note { margin: 0; font-size: 0.75rem; color: var(--muted); }
+
+@media (min-width: 768px) {
+  .shell { grid-template-columns: 16rem minmax(0, 1fr); }
+  .sidebar {
+    position: static;
+    width: auto;
+    transform: none;
+    visibility: visible;
+    box-shadow: none;
+    transition: none;
+  }
+  .sidebar-toggle, .topbar-new, .backdrop { display: none; }
+}
 
 /* ---------- small screens ---------- */
 
