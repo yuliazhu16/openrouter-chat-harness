@@ -276,6 +276,32 @@ describe('chat store: schema versions', () => {
   });
 });
 
+describe('Regression tests', () => {
+  it('starts a chat on a plain-http LAN address, where crypto.randomUUID does not exist (found 2026-11-20)', () => {
+    // Bug: the default id factory called crypto.randomUUID(), which browsers expose only in
+    // secure contexts (https://, localhost). Opening `just serve` from a phone at
+    // http://192.168.x.x:8000 — the way to test the mobile layout on a real device — made the
+    // first message throw "crypto.randomUUID is not a function". Found by reasoning while
+    // planning real-phone testing; fixed with a getRandomValues() fallback (storage.js randomId).
+    const real = Object.getOwnPropertyDescriptor(globalThis, 'crypto');
+    const insecureCrypto = { getRandomValues: (arr) => real.get ? real.get.call(globalThis).getRandomValues(arr) : real.value.getRandomValues(arr) };
+    Object.defineProperty(globalThis, 'crypto', { value: insecureCrypto, configurable: true, writable: true });
+    try {
+      const local = new MemoryStorage();
+      const tab = createChatStore({ storage: local }); // default id factory, as in the browser
+      const a = tab.create(user('Hello from my phone', 1)).id;
+      const b = tab.create(user('Second chat', 2)).id;
+
+      const uuidV4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+      assert.match(a, uuidV4);
+      assert.notEqual(a, b);
+      assert.deepEqual(createChatStore({ storage: local }).list().map((c) => c.id).sort(), [a, b].sort());
+    } finally {
+      Object.defineProperty(globalThis, 'crypto', real);
+    }
+  });
+});
+
 describe('titleFrom', () => {
   it('titles a chat by its first user message: one line, cut at 60 characters without splitting an emoji', () => {
     assert.equal(titleFrom([user('  Explain\n\nthis   error  ', 1)]), 'Explain this error');

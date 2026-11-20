@@ -52,7 +52,7 @@ const MIGRATIONS = {
  * @param {Storage|null} [options.storage]  a Web Storage object; defaults to window.localStorage
  * @param {() => string} [options.newId]    conversation id factory; defaults to crypto.randomUUID
  */
-export function createChatStore({ storage = defaultLocalStorage(), newId = () => crypto.randomUUID() } = {}) {
+export function createChatStore({ storage = defaultLocalStorage(), newId = randomId } = {}) {
   /** The Storage we persist to, or null when running in memory only. */
   let backend = isUsable(storage) ? storage : null;
   /** null | 'unavailable' | 'quota' | 'newer-schema' — what the UI should tell the user. */
@@ -347,6 +347,20 @@ function parseJson(raw) {
   } catch {
     return null;
   }
+}
+
+/**
+ * A conversation id. crypto.randomUUID() exists only in secure contexts (https://, localhost),
+ * so on a plain-http LAN address (e.g. testing from a phone at http://192.168.x.x:8000) it is
+ * undefined; getRandomValues() is available everywhere and gives the same v4 UUID shape.
+ */
+export function randomId() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  const b = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40; // version 4
+  b[8] = (b[8] & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function isQuotaError(err) {
